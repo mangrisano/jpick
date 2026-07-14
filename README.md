@@ -18,6 +18,7 @@ serializer.
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
 - Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
+- Compose queries with the **pipe** operator (`|`)
 - **Compact** or **pretty-printed** output
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
@@ -163,6 +164,20 @@ echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[].name'
 "luca"
 ```
 
+### Pipe
+
+The pipe operator `|` feeds every result of one stage into the next. `.a | .b`
+is the same as `.a.b`, but pipes also let you compose stages freely:
+
+```bash
+echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[] | .name'
+```
+
+```text
+"anna"
+"luca"
+```
+
 ### Combine a path with pretty-print
 
 ```bash
@@ -217,7 +232,8 @@ echo '{"a":[1]}' | jpick '.a[5]'
 - `.key` — descend into an object by key
 - `[n]` — index into an array (0-based)
 - `[]` — iterate over every element of an array (one result per element)
-- Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`
+- `|` — pipe: feed every result of one stage into the next
+- Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
 
 ## Project layout
