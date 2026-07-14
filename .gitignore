@@ -1,0 +1,5 @@
+# Build output
+build/
+
+# Editor / OS
+.DS_Store
