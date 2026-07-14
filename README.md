@@ -17,7 +17,7 @@ serializer.
 ## Features
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
-- Query values with a path expression: object keys and **array indices**
+- Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
 - **Compact** or **pretty-printed** output
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
@@ -125,6 +125,20 @@ echo '{"matrix":[[1,2],[3,4]]}' | jpick '.matrix[1][0]'
 3
 ```
 
+### Iterate over an array
+
+`[]` expands an array into one result per element (like `jq`). Following steps
+are applied to each element:
+
+```bash
+echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[].name'
+```
+
+```text
+"anna"
+"luca"
+```
+
 ### Combine a path with pretty-print
 
 ```bash
@@ -178,7 +192,8 @@ echo '{"a":[1]}' | jpick '.a[5]'
 
 - `.key` — descend into an object by key
 - `[n]` — index into an array (0-based)
-- Steps can be chained: `.a.b[0].c[1][2]`
+- `[]` — iterate over every element of an array (one result per element)
+- Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`
 - An empty path (or none) selects the whole document
 
 ## Project layout

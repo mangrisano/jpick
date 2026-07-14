@@ -5,6 +5,20 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Array iteration in path expressions: `[]` expands an array into one result
+  per element (e.g. `.users[].name`), producing multiple outputs like `jq`.
+- Richer `Value` API: convenience constructors, `is_*()`/`as_*()` accessors,
+  `operator[]` navigation and `operator==`.
+
+### Fixed
+
+- The parser now rejects trailing content after a complete value (e.g.
+  `[1][2]`) instead of silently ignoring it.
+
 ## [1.0.0] - 2026-07-14
 
 ### Added
