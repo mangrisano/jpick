@@ -316,3 +316,41 @@ TEST_CASE("parser rejects trailing content after a value")
     CHECK_THROWS_AS(parse_json("{\"a\": 1} {\"b\": 2}"), std::exception);
     CHECK_THROWS_AS(parse_json("1 2"), std::exception);
 }
+
+// -----------------------------------------------------------------------------
+// Pipe: compose stages with `|`, applying each to every value of the stream.
+// -----------------------------------------------------------------------------
+TEST_CASE("split_pipe splits and trims segments")
+{
+    std::vector<std::string> segs = split_pipe(".a | .b | .c");
+    REQUIRE(segs.size() == 3);
+    CHECK(segs[0] == ".a");
+    CHECK(segs[1] == ".b");
+    CHECK(segs[2] == ".c");
+
+    // No pipe -> a single segment.
+    std::vector<std::string> one = split_pipe(".a.b");
+    REQUIRE(one.size() == 1);
+    CHECK(one[0] == ".a.b");
+}
+
+TEST_CASE("query_pipe composes stages")
+{
+    Value v = parse_json("{\"users\": [{\"name\": \"anna\"}, {\"name\": \"luca\"}]}");
+
+    // .users[] | .name is equivalent to .users[].name
+    std::vector<Value> names = query_pipe(v, ".users[] | .name");
+    REQUIRE(names.size() == 2);
+    CHECK(names[0] == Value("anna"));
+    CHECK(names[1] == Value("luca"));
+
+    // A plain path (no pipe) still works.
+    std::vector<Value> single = query_pipe(v, ".users[0].name");
+    REQUIRE(single.size() == 1);
+    CHECK(single[0] == Value("anna"));
+
+    // An empty expression selects the whole document.
+    std::vector<Value> whole = query_pipe(v, "");
+    REQUIRE(whole.size() == 1);
+    CHECK(whole[0] == v);
+}

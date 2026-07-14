@@ -68,6 +68,37 @@ namespace jpick
         return steps;
     }
 
+    // Remove leading and trailing whitespace from a string.
+    inline std::string trim(const std::string &s)
+    {
+        const std::size_t start = s.find_first_not_of(" \t\n\r");
+        if (start == std::string::npos)
+            return "";
+        const std::size_t end = s.find_last_not_of(" \t\n\r");
+        return s.substr(start, end - start + 1);
+    }
+
+    // Split a pipe expression like ".a | .b" into its trimmed segments.
+    inline std::vector<std::string> split_pipe(const std::string &expr)
+    {
+        std::vector<std::string> segments;
+        std::string current;
+        for (char c : expr)
+        {
+            if (c == '|')
+            {
+                segments.push_back(trim(current));
+                current.clear();
+            }
+            else
+            {
+                current += c;
+            }
+        }
+        segments.push_back(trim(current));
+        return segments;
+    }
+
     inline std::vector<Value> query_path(const Value &root, const std::vector<PathStep> &steps)
     {
         std::vector<Value> current = {root};
@@ -93,6 +124,25 @@ namespace jpick
             current = std::move(next);
         }
         return current;
+    }
+
+    // Evaluate a full pipe expression: each segment is applied to every value
+    // produced by the previous one, flattening the results into one stream.
+    inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
+    {
+        std::vector<Value> stream = {root};
+        for (const std::string &segment : split_pipe(expr))
+        {
+            const std::vector<PathStep> steps = split_path(segment);
+            std::vector<Value> next;
+            for (const Value &value : stream)
+            {
+                std::vector<Value> results = query_path(value, steps);
+                next.insert(next.end(), results.begin(), results.end());
+            }
+            stream = std::move(next);
+        }
+        return stream;
     }
 
 } // namespace jpick

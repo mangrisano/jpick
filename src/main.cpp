@@ -48,11 +48,7 @@ int main(int argc, char *argv[])
         Parser parser(tokens);
         Value value = parser.parse();
 
-        std::vector<Value> results;
-        if (!path.empty())
-            results = query_path(value, split_path(path));
-        else
-            results = {value};
+        std::vector<Value> results = query_pipe(value, path);
 
         for (const Value &result : results)
             std::cout << serialize(result, pretty) << '\n';
