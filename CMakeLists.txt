@@ -14,6 +14,13 @@ add_executable(jpick src/main.cpp)
 target_include_directories(jpick PRIVATE third_party)
 target_compile_options(jpick PRIVATE -Wall -Wextra -Wpedantic)
 
+# ---- Install ----
+# `cmake --install build` copia jpick in una cartella del PATH.
+# GNUInstallDirs definisce CMAKE_INSTALL_BINDIR (di solito "bin"), relativo
+# a CMAKE_INSTALL_PREFIX (default /usr/local -> /usr/local/bin).
+include(GNUInstallDirs)
+install(TARGETS jpick RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 # ---- Test (doctest) ----
 enable_testing()
 
