@@ -29,6 +29,14 @@ cmake --build build
 
 The executable is produced at `build/jpick`.
 
+The examples below call it simply as `jpick`. To use it that way, either run it
+as `./build/jpick`, or install it onto your `PATH`:
+
+```bash
+cmake --install build                          # -> /usr/local/bin/jpick (may need sudo)
+cmake --install build --prefix ~/.local        # -> ~/.local/bin/jpick (no sudo)
+```
+
 ### Run the tests
 
 ```bash
@@ -54,7 +62,7 @@ Options:
 ### Format JSON (no path)
 
 ```bash
-echo '{"a":1,"b":[1,2]}' | ./build/jpick
+echo '{"a":1,"b":[1,2]}' | jpick
 ```
 
 ```json
@@ -67,7 +75,7 @@ Pretty mode puts every array element and object member on its own line,
 indented by two spaces per nesting level:
 
 ```bash
-echo '{"a":1,"b":[1,2]}' | ./build/jpick --pretty
+echo '{"a":1,"b":[1,2]}' | jpick --pretty
 ```
 
 ```json
@@ -80,7 +88,7 @@ echo '{"a":1,"b":[1,2]}' | ./build/jpick --pretty
 ### Extract an object field
 
 ```bash
-echo '{"user":{"name":"anna","age":30}}' | ./build/jpick '.user.name'
+echo '{"user":{"name":"anna","age":30}}' | jpick '.user.name'
 ```
 
 ```json
@@ -90,7 +98,7 @@ echo '{"user":{"name":"anna","age":30}}' | ./build/jpick '.user.name'
 ### Index into an array
 
 ```bash
-echo '{"users":["anna","luca","sara"]}' | ./build/jpick '.users[1]'
+echo '{"users":["anna","luca","sara"]}' | jpick '.users[1]'
 ```
 
 ```json
@@ -100,7 +108,7 @@ echo '{"users":["anna","luca","sara"]}' | ./build/jpick '.users[1]'
 Paths combine keys and indices, including nested indices:
 
 ```bash
-echo '{"matrix":[[1,2],[3,4]]}' | ./build/jpick '.matrix[1][0]'
+echo '{"matrix":[[1,2],[3,4]]}' | jpick '.matrix[1][0]'
 ```
 
 ```json
@@ -110,7 +118,7 @@ echo '{"matrix":[[1,2],[3,4]]}' | ./build/jpick '.matrix[1][0]'
 ### Combine a path with pretty-print
 
 ```bash
-echo '{"tags":["cli","json"],"count":2}' | ./build/jpick '.tags' --pretty
+echo '{"tags":["cli","json"],"count":2}' | jpick '.tags' --pretty
 ```
 
 ```json
@@ -121,7 +129,7 @@ echo '{"tags":["cli","json"],"count":2}' | ./build/jpick '.tags' --pretty
 
 ```bash
 echo '{"tags":["cli","json"],"count":2}' > data.json
-./build/jpick '.tags' data.json
+jpick '.tags' data.json
 ```
 
 ```json
@@ -133,7 +141,7 @@ echo '{"tags":["cli","json"],"count":2}' > data.json
 Strings, numbers, booleans and `null` are printed as valid JSON:
 
 ```bash
-echo '{"ok":true,"ratio":6.022e23,"missing":null}' | ./build/jpick '.ratio'
+echo '{"ok":true,"ratio":6.022e23,"missing":null}' | jpick '.ratio'
 ```
 
 ```json
@@ -146,10 +154,10 @@ Invalid input, a missing field, or an out-of-range index print a message to
 `stderr` and exit with status `1`:
 
 ```bash
-echo '{"a":1}' | ./build/jpick '.b'
+echo '{"a":1}' | jpick '.b'
 # jpick: Field does not exist   (exit code 1)
 
-echo '{"a":[1]}' | ./build/jpick '.a[5]'
+echo '{"a":[1]}' | jpick '.a[5]'
 # jpick: Index out of range     (exit code 1)
 ```
 
