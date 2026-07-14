@@ -23,6 +23,15 @@ namespace jpick
     {
         std::variant<std::string, bool, double, Array, Object, std::nullptr_t> data;
 
+        Value() = default;
+        Value(double n) : data(n) {}
+        Value(bool b) : data(b) {}
+        Value(const std::string &s) : data(s) {}
+        Value(const char *s) : data(std::string(s)) {}
+        Value(std::nullptr_t) : data(nullptr) {}
+
+        bool operator==(const Value &other) const { return data == other.data; }
+
         bool is_string() const { return std::holds_alternative<std::string>(data); }
         bool is_number() const { return std::holds_alternative<double>(data); }
         bool is_bool() const { return std::holds_alternative<bool>(data); }
@@ -64,13 +73,15 @@ namespace jpick
         {
             const Object &obj = as_object();
             auto it = obj.find(key);
-            if (it == obj.end()) throw std::runtime_error("Field does not exist");
+            if (it == obj.end())
+                throw std::runtime_error("Field does not exist");
             return it->second;
         }
         const Value &operator[](std::size_t index) const
         {
             const Array &arr = as_array();
-            if (index >= arr.size()) throw std::runtime_error("Index out of range");
+            if (index >= arr.size())
+                throw std::runtime_error("Index out of range");
             return arr[index];
         }
     };
