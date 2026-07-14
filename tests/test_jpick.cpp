@@ -5,11 +5,13 @@
 #define DOCTEST_CONFIG_IMPLEMENT_WITH_MAIN
 #include "doctest.h"
 
-#include "json.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-#include "query.hpp"
-#include "serializer.hpp"
+#include "jpick/json.hpp"
+#include "jpick/lexer.hpp"
+#include "jpick/parser.hpp"
+#include "jpick/query.hpp"
+#include "jpick/serializer.hpp"
+
+using namespace jpick;
 
 // Helper: from JSON text to the Value tree in one shot.
 // Mirrors what main.cpp does: tokenize -> Parser -> parse_value.

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(jpick LANGUAGES CXX)
+project(jpick VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -10,9 +10,11 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 add_executable(jpick src/main.cpp)
-# CLI11.hpp sta in third_party/.
-target_include_directories(jpick PRIVATE third_party)
+# Public headers live in include/ (as jpick/*.hpp); CLI11.hpp in third_party/.
+target_include_directories(jpick PRIVATE include third_party)
 target_compile_options(jpick PRIVATE -Wall -Wextra -Wpedantic)
+# Expose the project version to the CLI (used by --version).
+target_compile_definitions(jpick PRIVATE JPICK_VERSION="${PROJECT_VERSION}")
 
 # ---- Install ----
 # `cmake --install build` copia jpick in una cartella del PATH.
@@ -25,8 +27,8 @@ install(TARGETS jpick RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 enable_testing()
 
 add_executable(jpick_tests tests/test_jpick.cpp)
-# Gli header della logica stanno in src/, doctest.h in third_party/.
-target_include_directories(jpick_tests PRIVATE src third_party)
+# Logic headers in include/ (as jpick/*.hpp), doctest.h in third_party/.
+target_include_directories(jpick_tests PRIVATE include third_party)
 target_compile_options(jpick_tests PRIVATE -Wall -Wextra -Wpedantic)
 
 # Registra l'eseguibile di test con CTest, cosi' basta lanciare `ctest`.

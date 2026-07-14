@@ -2,14 +2,17 @@
 #include <fstream>
 #include <string>
 #include "CLI11.hpp"
-#include "lexer.hpp"
-#include "parser.hpp"
-#include "query.hpp"
-#include "serializer.hpp"
+#include "jpick/lexer.hpp"
+#include "jpick/parser.hpp"
+#include "jpick/query.hpp"
+#include "jpick/serializer.hpp"
+
+using namespace jpick;
 
 int main(int argc, char *argv[])
 {
     CLI::App app{"jpick - a tiny jq-like JSON tool"};
+    app.set_version_flag("-v,--version", JPICK_VERSION);
 
     std::string path;
     std::string file;
