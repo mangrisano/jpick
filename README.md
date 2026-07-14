@@ -22,6 +22,30 @@ serializer.
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
 
+## Install
+
+### Homebrew (macOS / Linux)
+
+```bash
+brew install mangrisano/jpick/jpick
+```
+
+### From a release
+
+Prebuilt binaries for Linux and macOS are attached to each
+[release](https://github.com/mangrisano/jpick/releases). Download the one for
+your platform, verify its checksum, make it executable, and move it onto your
+`PATH`:
+
+```bash
+chmod +x jpick-macos-arm64
+sudo mv jpick-macos-arm64 /usr/local/bin/jpick
+```
+
+### From source
+
+See [Build](#build) below.
+
 ## Build
 
 Requirements: a C++20 compiler and CMake ≥ 3.20.
