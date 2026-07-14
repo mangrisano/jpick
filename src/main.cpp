@@ -46,15 +46,16 @@ int main(int argc, char *argv[])
     {
         std::vector<Token> tokens = tokenize(input);
         Parser parser(tokens);
-        Value value = parser.parse_value();
+        Value value = parser.parse();
 
+        std::vector<Value> results;
         if (!path.empty())
-        {
-            std::vector<PathStep> keys = split_path(path);
-            value = query_path(value, keys);
-        }
+            results = query_path(value, split_path(path));
+        else
+            results = {value};
 
-        std::cout << serialize(value, pretty) << '\n';
+        for (const Value &result : results)
+            std::cout << serialize(result, pretty) << '\n';
     }
     catch (const std::exception &e)
     {

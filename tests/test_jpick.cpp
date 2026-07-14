@@ -19,7 +19,7 @@ static Value parse_json(const std::string &text)
 {
     std::vector<Token> tokens = tokenize(text);
     Parser parser(tokens);
-    return parser.parse_value();
+    return parser.parse();
 }
 
 // -----------------------------------------------------------------------------
@@ -194,24 +194,46 @@ TEST_CASE("query gets a single field")
 TEST_CASE("query_path walks nested paths")
 {
     Value v = parse_json("{\"a\": {\"b\": {\"c\": 42}}}");
-    Value result = query_path(v, split_path(".a.b.c"));
+    Value result = query_path(v, split_path(".a.b.c"))[0];
     CHECK(serialize(result) == "42");
 
-    Value branch = query_path(v, split_path(".a.b"));
+    Value branch = query_path(v, split_path(".a.b"))[0];
     CHECK(serialize(branch) == "{\"c\": 42}");
 }
 
 TEST_CASE("query_index and query_path handle array indices")
 {
     Value v = parse_json("{\"users\": [\"anna\", \"luca\", \"sara\"]}");
-    CHECK(serialize(query_path(v, split_path(".users[1]"))) == "\"luca\"");
+    CHECK(serialize(query_path(v, split_path(".users[1]"))[0]) == "\"luca\"");
 
     Value m = parse_json("{\"matrix\": [[1, 2], [3, 4]]}");
-    CHECK(serialize(query_path(m, split_path(".matrix[1][0]"))) == "3");
+    CHECK(serialize(query_path(m, split_path(".matrix[1][0]"))[0]) == "3");
 
     // query_index directly
     Value arr = parse_json("[10, 20, 30]");
     CHECK(serialize(query_index(arr, 2)) == "30");
+}
+
+TEST_CASE("query_path iterates arrays with []")
+{
+    // .users[] expands to every element of the array.
+    Value v = parse_json("{\"users\": [\"anna\", \"luca\", \"sara\"]}");
+    std::vector<Value> all = query_path(v, split_path(".users[]"));
+    REQUIRE(all.size() == 3);
+    CHECK(all[0] == Value("anna"));
+    CHECK(all[1] == Value("luca"));
+    CHECK(all[2] == Value("sara"));
+
+    // .users[].name applies the following step to each element.
+    Value people = parse_json("{\"users\": [{\"name\": \"anna\"}, {\"name\": \"luca\"}]}");
+    std::vector<Value> names = query_path(people, split_path(".users[].name"));
+    REQUIRE(names.size() == 2);
+    CHECK(names[0] == Value("anna"));
+    CHECK(names[1] == Value("luca"));
+
+    // [] on a non-array is an error.
+    Value scalar = parse_json("42");
+    CHECK_THROWS_AS(query_path(scalar, split_path(".[]")), std::exception);
 }
 
 TEST_CASE("query_index errors: out of range and non-array")
@@ -283,4 +305,14 @@ TEST_CASE("Value equality is order-independent for objects")
     // Different values -> not equal.
     Value c = parse_json("{\"x\": 1, \"y\": [2, 4]}");
     CHECK_FALSE(a == c);
+}
+
+// -----------------------------------------------------------------------------
+// A full document is a single value: anything after it is an error.
+// -----------------------------------------------------------------------------
+TEST_CASE("parser rejects trailing content after a value")
+{
+    CHECK_THROWS_AS(parse_json("[1][2]"), std::exception);
+    CHECK_THROWS_AS(parse_json("{\"a\": 1} {\"b\": 2}"), std::exception);
+    CHECK_THROWS_AS(parse_json("1 2"), std::exception);
 }

@@ -14,7 +14,12 @@
 namespace jpick
 {
 
-    using PathStep = std::variant<std::string, std::size_t>;
+    // Marker for the "[]" step: iterate over all elements of an array.
+    struct Iterate
+    {
+    };
+
+    using PathStep = std::variant<std::string, std::size_t, Iterate>;
 
     inline Value query(const Value &root, const std::string &key)
     {
@@ -42,8 +47,15 @@ namespace jpick
             }
             else if (c == ']')
             {
-                std::size_t index = std::stoul(current);
-                steps.emplace_back(std::in_place_type<std::size_t>, index);
+                if (current.empty())
+                {
+                    steps.emplace_back(std::in_place_type<Iterate>);
+                }
+                else
+                {
+                    std::size_t index = std::stoul(current);
+                    steps.emplace_back(std::in_place_type<std::size_t>, index);
+                }
                 current.clear();
             }
             else
@@ -56,19 +68,29 @@ namespace jpick
         return steps;
     }
 
-    inline Value query_path(const Value &root, const std::vector<PathStep> &steps)
+    inline std::vector<Value> query_path(const Value &root, const std::vector<PathStep> &steps)
     {
-        Value current = root;
+        std::vector<Value> current = {root};
         for (const PathStep &step : steps)
         {
-            if (const std::string *key = std::get_if<std::string>(&step))
+            std::vector<Value> next;
+            for (const Value &value : current)
             {
-                current = query(current, *key);
+                if (const std::string *key = std::get_if<std::string>(&step))
+                {
+                    next.push_back(value[*key]);
+                }
+                else if (const std::size_t *index = std::get_if<std::size_t>(&step))
+                {
+                    next.push_back(value[*index]);
+                }
+                else // Iterate: expand the array into its elements
+                {
+                    for (const Value &element : value.as_array())
+                        next.push_back(element);
+                }
             }
-            else if (const std::size_t *index = std::get_if<std::size_t>(&step))
-            {
-                current = query_index(current, *index);
-            }
+            current = std::move(next);
         }
         return current;
     }

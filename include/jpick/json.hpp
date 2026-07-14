@@ -45,30 +45,35 @@ namespace jpick
                 return *p;
             throw std::runtime_error("Value is not a String");
         }
+        
         double as_number() const
         {
             if (const double *p = std::get_if<double>(&data))
                 return *p;
             throw std::runtime_error("Value is not a Number");
         }
+
         bool as_bool() const
         {
             if (const bool *p = std::get_if<bool>(&data))
                 return *p;
             throw std::runtime_error("Value is not a Bool");
         }
+
         const Array &as_array() const
         {
             if (const Array *p = std::get_if<Array>(&data))
                 return *p;
             throw std::runtime_error("Value is not an Array");
         }
+
         const Object &as_object() const
         {
             if (const Object *p = std::get_if<Object>(&data))
                 return *p;
             throw std::runtime_error("Value is not an Object");
         }
+
         const Value &operator[](const std::string &key) const
         {
             const Object &obj = as_object();
@@ -77,6 +82,7 @@ namespace jpick
                 throw std::runtime_error("Field does not exist");
             return it->second;
         }
+        
         const Value &operator[](std::size_t index) const
         {
             const Array &arr = as_array();
