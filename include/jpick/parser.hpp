@@ -23,6 +23,7 @@ namespace jpick
         {
             return tokens[pos++];
         }
+        
         const Token &expect(TokenType type)
         {
             const Token &tok = advance();
@@ -30,6 +31,15 @@ namespace jpick
                 throw std::runtime_error("Unexpected token");
             return tok;
         }
+
+        Value parse()
+        {
+            Value result = parse_value();
+            if (peek().type != TokenType::EndOfInput)
+                throw std::runtime_error("Unexpected trailing content");
+            return result;
+        }
+
         Value parse_array()
         {
             expect(TokenType::LBracket);
@@ -89,6 +99,7 @@ namespace jpick
             result.data.emplace<Object>(obj);
             return result;
         }
+
         Value parse_value()
         {
             switch (peek().type)
