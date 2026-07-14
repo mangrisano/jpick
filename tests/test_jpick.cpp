@@ -239,3 +239,48 @@ TEST_CASE("errors: malformed input and missing fields")
     Value number = parse_json("42");
     CHECK_THROWS_AS(query(number, "a"), std::exception);
 }
+
+// -----------------------------------------------------------------------------
+// Value API: convenience constructors, type queries, typed accessors,
+// operator[] navigation and equality.
+// -----------------------------------------------------------------------------
+TEST_CASE("Value convenience constructors and accessors")
+{
+    Value n = 42.0;    // double
+    Value s = "jpick"; // const char* -> string (not bool!)
+    Value b = true;
+    Value nothing = nullptr;
+
+    CHECK(n.is_number());
+    CHECK(s.is_string());
+    CHECK(b.is_bool());
+    CHECK(nothing.is_null());
+
+    CHECK(n.as_number() == doctest::Approx(42.0));
+    CHECK(s.as_string() == "jpick");
+    CHECK(b.as_bool() == true);
+
+    // Wrong-type access throws.
+    CHECK_THROWS_AS(n.as_string(), std::exception);
+}
+
+TEST_CASE("Value operator[] navigates objects and arrays")
+{
+    Value v = parse_json("{\"a\": {\"b\": [10, 20, 30]}}");
+    CHECK(v["a"]["b"][2].as_number() == doctest::Approx(30.0));
+
+    CHECK_THROWS_AS(v["missing"], std::exception);   // field does not exist
+    CHECK_THROWS_AS(v["a"]["b"][5], std::exception); // index out of range
+}
+
+TEST_CASE("Value equality is order-independent for objects")
+{
+    // Same structure, keys written in a different order -> equal.
+    Value a = parse_json("{\"x\": 1, \"y\": [2, 3]}");
+    Value b = parse_json("{\"y\": [2, 3], \"x\": 1}");
+    CHECK(a == b);
+
+    // Different values -> not equal.
+    Value c = parse_json("{\"x\": 1, \"y\": [2, 4]}");
+    CHECK_FALSE(a == c);
+}
