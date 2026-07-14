@@ -1,5 +1,9 @@
 # jpick
 
+[![CI](https://github.com/mangrisano/jpick/actions/workflows/ci.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+
 A tiny [`jq`](https://stedolan.github.io/jq/)-like JSON tool written in C++20.
 
 `jpick` reads JSON from standard input or a file, optionally extracts a value
@@ -54,8 +58,11 @@ Positionals:
 
 Options:
   -h,--help     Print help and exit
+  -v,--version  Print version and exit
   -p,--pretty   Pretty-print the output
 ```
+
+> Output blocks below are shown as literal terminal output.
 
 ## Examples
 
@@ -65,8 +72,8 @@ Options:
 echo '{"a":1,"b":[1,2]}' | jpick
 ```
 
-```json
-{ "a": 1, "b": [1, 2] }
+```text
+{"a": 1, "b": [1, 2]}
 ```
 
 ### Pretty-print
@@ -78,10 +85,13 @@ indented by two spaces per nesting level:
 echo '{"a":1,"b":[1,2]}' | jpick --pretty
 ```
 
-```json
+```text
 {
   "a": 1,
-  "b": [1, 2]
+  "b": [
+    1,
+    2
+  ]
 }
 ```
 
@@ -91,7 +101,7 @@ echo '{"a":1,"b":[1,2]}' | jpick --pretty
 echo '{"user":{"name":"anna","age":30}}' | jpick '.user.name'
 ```
 
-```json
+```text
 "anna"
 ```
 
@@ -101,7 +111,7 @@ echo '{"user":{"name":"anna","age":30}}' | jpick '.user.name'
 echo '{"users":["anna","luca","sara"]}' | jpick '.users[1]'
 ```
 
-```json
+```text
 "luca"
 ```
 
@@ -111,7 +121,7 @@ Paths combine keys and indices, including nested indices:
 echo '{"matrix":[[1,2],[3,4]]}' | jpick '.matrix[1][0]'
 ```
 
-```json
+```text
 3
 ```
 
@@ -121,8 +131,11 @@ echo '{"matrix":[[1,2],[3,4]]}' | jpick '.matrix[1][0]'
 echo '{"tags":["cli","json"],"count":2}' | jpick '.tags' --pretty
 ```
 
-```json
-["cli", "json"]
+```text
+[
+  "cli",
+  "json"
+]
 ```
 
 ### Read from a file
@@ -132,7 +145,7 @@ echo '{"tags":["cli","json"],"count":2}' > data.json
 jpick '.tags' data.json
 ```
 
-```json
+```text
 ["cli", "json"]
 ```
 
@@ -144,8 +157,8 @@ Strings, numbers, booleans and `null` are printed as valid JSON:
 echo '{"ok":true,"ratio":6.022e23,"missing":null}' | jpick '.ratio'
 ```
 
-```json
-6.022e23
+```text
+6.022e+23
 ```
 
 ### Errors
@@ -171,12 +184,13 @@ echo '{"a":[1]}' | jpick '.a[5]'
 ## Project layout
 
 ```
-src/
+include/jpick/
   json.hpp        # Value data model (std::variant)
   lexer.hpp       # tokenizer
   parser.hpp      # recursive-descent parser
   query.hpp       # path parsing and tree navigation
   serializer.hpp  # compact and pretty serialization
+src/
   main.cpp        # CLI entry point
 tests/
   test_jpick.cpp
@@ -185,8 +199,14 @@ third_party/
   CLI11.hpp       # command-line parsing
 ```
 
+All library code lives in the `jpick` namespace.
+
 ## Notes and limitations
 
 - Object output key order is not preserved (objects use `std::unordered_map`).
   This is valid JSON, but keys may appear in a different order than the input.
 - Unicode `\uXXXX` escape sequences are not decoded.
+
+## License
+
+Released under the [MIT License](LICENSE).
