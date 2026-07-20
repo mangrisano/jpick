@@ -158,6 +158,47 @@ TEST_CASE("@format segments format the output")
     CHECK_THROWS_AS(query_pipe(parse_json("1"), "@nope"), std::exception);
 }
 
+TEST_CASE("@base64d decodes and round-trips with @base64")
+{
+    CHECK(base64_decode("") == "");
+    CHECK(base64_decode("YQ==") == "a");
+    CHECK(base64_decode("YWI=") == "ab");
+    CHECK(base64_decode("aGVsbG8=") == "hello");
+
+    // Whitespace is ignored; invalid characters are rejected.
+    CHECK(base64_decode("aGVs\nbG8=") == "hello");
+    CHECK_THROWS_AS(base64_decode("!!!"), std::exception);
+
+    // Encoding then decoding is the identity, via the pipe.
+    std::vector<Value> r = query_pipe(parse_json("\"a,b\""), "@base64 | @base64d");
+    REQUIRE(r.size() == 1);
+    CHECK(r[0].as_string() == "a,b");
+}
+
+TEST_CASE("@uri percent-encodes reserved characters")
+{
+    CHECK(query_pipe(parse_json("\"hello world\""), "@uri")[0].as_string() ==
+          "hello%20world");
+    // Unreserved characters pass through unchanged.
+    CHECK(query_pipe(parse_json("\"aZ0-_.~\""), "@uri")[0].as_string() == "aZ0-_.~");
+    // '/' and '?' are reserved and get encoded.
+    CHECK(query_pipe(parse_json("\"a/b?c\""), "@uri")[0].as_string() == "a%2Fb%3Fc");
+}
+
+TEST_CASE("@sh quotes values for the shell")
+{
+    // Strings are single-quoted, inner quotes escaped as '\''.
+    CHECK(query_pipe(parse_json("\"it's a test\""), "@sh")[0].as_string() ==
+          "'it'\\''s a test'");
+    // Numbers and bools are emitted bare.
+    CHECK(query_pipe(parse_json("42"), "@sh")[0].as_string() == "42");
+    // An array escapes each element and joins with spaces.
+    CHECK(query_pipe(parse_json("[\"a b\", 42, true]"), "@sh")[0].as_string() ==
+          "'a b' 42 true");
+    // null cannot be escaped for the shell.
+    CHECK_THROWS_AS(query_pipe(parse_json("null"), "@sh"), std::exception);
+}
+
 // -----------------------------------------------------------------------------
 // Round-trip: parse(serialize(parse(x))) must keep the same fields.
 // -----------------------------------------------------------------------------
