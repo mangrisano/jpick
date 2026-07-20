@@ -354,3 +354,62 @@ TEST_CASE("query_pipe composes stages")
     REQUIRE(whole.size() == 1);
     CHECK(whole[0] == v);
 }
+
+// -----------------------------------------------------------------------------
+// String interpolation: a "..." segment builds a string, replacing each
+// \( ... ) with the value it produces.
+// -----------------------------------------------------------------------------
+TEST_CASE("split_pipe does not split inside string literals")
+{
+    // A '|' inside a string literal must not split the expression.
+    std::vector<std::string> segs = split_pipe(".a | \"x|y\"");
+    REQUIRE(segs.size() == 2);
+    CHECK(segs[0] == ".a");
+    CHECK(segs[1] == "\"x|y\"");
+
+    // An escaped quote does not toggle the string state.
+    std::vector<std::string> one = split_pipe("\"a\\\"|b\"");
+    REQUIRE(one.size() == 1);
+    CHECK(one[0] == "\"a\\\"|b\"");
+}
+
+TEST_CASE("raw_value emits strings without quotes and serializes the rest")
+{
+    CHECK(raw_value(Value("hello")) == "hello");
+    CHECK(raw_value(Value(42.0)) == "42");
+    CHECK(raw_value(Value(true)) == "true");
+}
+
+TEST_CASE("interpolate replaces \\( ... ) with the raw value")
+{
+    Value v = parse_json("{\"name\": \"anna\", \"age\": 30}");
+
+    CHECK(interpolate("\"\\(.name): \\(.age)\"", v) == "anna: 30");
+
+    // A literal with no interpolation is returned as-is.
+    CHECK(interpolate("\"plain text\"", v) == "plain text");
+
+    // Escapes are decoded.
+    CHECK(interpolate("\"a\\nb\"", v) == "a\nb");
+}
+
+TEST_CASE("interpolate errors on multiple values or an unclosed \\(")
+{
+    Value v = parse_json("{\"a\": [1, 2, 3]}");
+
+    // An inner expression that yields several values is rejected.
+    CHECK_THROWS_AS(interpolate("\"\\(.a[])\"", v), std::exception);
+
+    // A missing ')' is an error.
+    CHECK_THROWS_AS(interpolate("\"\\(.a\"", v), std::exception);
+}
+
+TEST_CASE("query_pipe evaluates a string-literal stage")
+{
+    Value v = parse_json("{\"items\": [{\"n\": \"a\", \"c\": 1}, {\"n\": \"b\", \"c\": 2}]}");
+
+    std::vector<Value> out = query_pipe(v, ".items[] | \"\\(.n)=\\(.c)\"");
+    REQUIRE(out.size() == 2);
+    CHECK(out[0] == Value("a=1"));
+    CHECK(out[1] == Value("b=2"));
+}
