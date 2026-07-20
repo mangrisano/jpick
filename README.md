@@ -250,7 +250,22 @@ echo '{"a":[1,2]}' | jpick --indent 4
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
 of scalars; `@base64`, `@base64d`, `@uri`, `@sh`, `@json` and `@text` take any
-value (`@sh` also accepts an array). Combine with `-r` for clean output:
+value (`@sh` also accepts an array). Combine with `-r` for clean output.
+
+One example per format (each run as `echo '<input>' | jpick -r '. | @<fmt>'`):
+
+| Format     | Input                   | Output                      |
+| ---------- | ----------------------- | --------------------------- |
+| `@text`    | `42`                    | `42`                        |
+| `@json`    | `{"a":1,"b":[2,3]}`     | `{"a": 1, "b": [2, 3]}`     |
+| `@base64`  | `"hello"`               | `aGVsbG8=`                  |
+| `@base64d` | `"aGVsbG8="`            | `hello`                     |
+| `@uri`     | `"a b/c?x=1"`           | `a%20b%2Fc%3Fx%3D1`         |
+| `@sh`      | `"it's ok"`             | `'it'\''s ok'`              |
+| `@csv`     | `["anna",30,true,null]` | `"anna",30,true,`           |
+| `@tsv`     | `["anna",30,true,null]` | `anna<tab>30<tab>true<tab>` |
+
+Turning an array of rows into CSV:
 
 ```bash
 echo '[["anna",30,true],["luca",25,false]]' | jpick -r '.[] | @csv'
