@@ -20,7 +20,7 @@ serializer.
 - Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
-- Format output with `@text`, `@json`, `@base64`, `@csv`, `@tsv`, like `jq`
+- Format output with `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
 - **Sort object keys** with `-S`/`--sort-keys`
 - **Raw** string output (`-r`/`--raw-output`), like `jq -r`
@@ -249,8 +249,8 @@ echo '{"a":[1,2]}' | jpick --indent 4
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
-of scalars; `@base64`, `@json` and `@text` take any value. Combine with `-r`
-for clean output:
+of scalars; `@base64`, `@base64d`, `@uri`, `@sh`, `@json` and `@text` take any
+value (`@sh` also accepts an array). Combine with `-r` for clean output:
 
 ```bash
 echo '[["anna",30,true],["luca",25,false]]' | jpick -r '.[] | @csv'
@@ -317,7 +317,7 @@ echo '{"a":[1]}' | jpick '.a[5]'
 - `[]` — iterate over every element of an array (one result per element)
 - `|` — pipe: feed every result of one stage into the next
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
-- `@fmt` — format a value: `@text`, `@json`, `@base64`, `@csv`, `@tsv`
+- `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
 
