@@ -17,10 +17,12 @@ int main(int argc, char *argv[])
     std::string path;
     std::string file;
     bool pretty = false;
+    bool raw = false;
 
     app.add_option("path", path, "Query path, e.g. '.a.b[0]'");
     app.add_option("file", file, "JSON file to read (default: stdin)");
     app.add_flag("-p,--pretty", pretty, "Pretty-print the output");
+    app.add_flag("-r,--raw-output", raw, "Output strings without quotes or escaping");
 
     CLI11_PARSE(app, argc, argv);
 
@@ -51,7 +53,12 @@ int main(int argc, char *argv[])
         std::vector<Value> results = query_pipe(value, path);
 
         for (const Value &result : results)
-            std::cout << serialize(result, pretty) << '\n';
+        {
+            if (raw && result.is_string())
+                std::cout << result.as_string() << '\n';
+            else
+                std::cout << serialize(result, pretty) << '\n';
+        }
     }
     catch (const std::exception &e)
     {

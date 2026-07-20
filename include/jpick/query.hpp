@@ -10,6 +10,7 @@
 #include <vector>
 #include <variant>
 #include "jpick/json.hpp"
+#include "jpick/serializer.hpp"
 
 namespace jpick
 {
@@ -79,13 +80,30 @@ namespace jpick
     }
 
     // Split a pipe expression like ".a | .b" into its trimmed segments.
+    // Quote-aware: a '|' inside a string literal (e.g. "a|b" or an
+    // interpolation "\(.a | .b)") does not split the expression.
     inline std::vector<std::string> split_pipe(const std::string &expr)
     {
         std::vector<std::string> segments;
         std::string current;
-        for (char c : expr)
+        bool in_string = false;
+        for (std::size_t i = 0; i < expr.size(); ++i)
         {
-            if (c == '|')
+            const char c = expr[i];
+            if (c == '"')
+            {
+                in_string = !in_string;
+                current += c;
+            }
+            else if (c == '\\' && in_string && i + 1 < expr.size())
+            {
+                // Keep the escape pair intact so that \" does not
+                // wrongly toggle the in_string state.
+                current += c;
+                current += expr[i + 1];
+                ++i;
+            }
+            else if (c == '|' && !in_string)
             {
                 segments.push_back(trim(current));
                 current.clear();
@@ -126,19 +144,105 @@ namespace jpick
         return current;
     }
 
+    // Render a value the way string interpolation expects it: a string is
+    // emitted raw (without surrounding quotes), everything else is serialized.
+    inline std::string raw_value(const Value &value)
+    {
+        if (value.is_string())
+            return value.as_string();
+        return serialize(value);
+    }
+
+    // Forward declaration: interpolate evaluates the inner \( ... )
+    // expressions with the full pipe machinery.
+    inline std::vector<Value> query_pipe(const Value &root, const std::string &expr);
+
+    // Evaluate a string-literal segment such as "\(.name): \(.count)" against
+    // a single value. `literal` still carries its surrounding double quotes.
+    // Each \( ... ) is replaced by the raw form of the value it produces.
+    inline std::string interpolate(const std::string &literal, const Value &value)
+    {
+        if (literal.size() < 2 || literal.front() != '"' || literal.back() != '"')
+            throw std::runtime_error("Unterminated string literal");
+
+        std::string out;
+        for (std::size_t i = 1; i + 1 < literal.size(); ++i)
+        {
+            const char c = literal[i];
+            if (c != '\\')
+            {
+                out += c;
+                continue;
+            }
+
+            // A backslash cannot be the last character before the closing quote.
+            if (i + 1 == literal.size() - 1)
+                throw std::runtime_error("Invalid escape in string literal");
+
+            const char next = literal[i + 1];
+            if (next == '(')
+            {
+                const std::size_t close = literal.find(')', i + 2);
+                if (close == std::string::npos)
+                    throw std::runtime_error("String interpolation is missing ')'");
+                const std::string inner = literal.substr(i + 2, close - (i + 2));
+                std::vector<Value> results = query_pipe(value, inner);
+                if (results.size() != 1)
+                    throw std::runtime_error("String interpolation must produce exactly one value");
+                out += raw_value(results[0]);
+                i = close; // the loop's ++i moves past ')'
+            }
+            else
+            {
+                switch (next)
+                {
+                case 'n':
+                    out += '\n';
+                    break;
+                case 't':
+                    out += '\t';
+                    break;
+                case 'r':
+                    out += '\r';
+                    break;
+                case '"':
+                    out += '"';
+                    break;
+                case '\\':
+                    out += '\\';
+                    break;
+                default:
+                    throw std::runtime_error("Unknown escape in string literal");
+                }
+                ++i; // skip the escaped character
+            }
+        }
+        return out;
+    }
+
     // Evaluate a full pipe expression: each segment is applied to every value
     // produced by the previous one, flattening the results into one stream.
+    // A segment starting with '"' is a string literal evaluated by interpolate;
+    // any other segment is a navigation path.
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
     {
         std::vector<Value> stream = {root};
         for (const std::string &segment : split_pipe(expr))
         {
-            const std::vector<PathStep> steps = split_path(segment);
             std::vector<Value> next;
-            for (const Value &value : stream)
+            if (!segment.empty() && segment.front() == '"')
             {
-                std::vector<Value> results = query_path(value, steps);
-                next.insert(next.end(), results.begin(), results.end());
+                for (const Value &value : stream)
+                    next.push_back(Value(interpolate(segment, value)));
+            }
+            else
+            {
+                const std::vector<PathStep> steps = split_path(segment);
+                for (const Value &value : stream)
+                {
+                    std::vector<Value> results = query_path(value, steps);
+                    next.insert(next.end(), results.begin(), results.end());
+                }
             }
             stream = std::move(next);
         }
