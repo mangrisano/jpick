@@ -19,7 +19,9 @@ serializer.
 - Hand-written JSON **lexer** and **recursive-descent parser**
 - Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
+- Build strings with **interpolation**: `"\(.name): \(.count)"`
 - **Compact** or **pretty-printed** output
+- **Raw** string output (`-r`/`--raw-output`), like `jq -r`
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
 
@@ -85,6 +87,7 @@ Options:
   -h,--help     Print help and exit
   -v,--version  Print version and exit
   -p,--pretty   Pretty-print the output
+  -r,--raw-output  Output strings without quotes or escaping
 ```
 
 > Output blocks below are shown as literal terminal output.
@@ -178,6 +181,35 @@ echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[] | .name'
 "luca"
 ```
 
+### Interpolate values into a string
+
+A `"..."` segment builds a string, replacing every `\(...)` with the value the
+inner path produces (like `jq`). The inner expression must yield exactly one
+value:
+
+```bash
+echo '{"items":[{"n":"a","c":1},{"n":"b","c":2}]}' | jpick '.items[] | "\(.n)=\(.c)"'
+```
+
+```text
+"a=1"
+"b=2"
+```
+
+### Raw string output
+
+By default strings are printed as valid JSON (quoted). `-r`/`--raw-output` prints
+top-level strings without quotes or escaping; other values are unchanged:
+
+```bash
+echo '{"items":[{"n":"a","c":1},{"n":"b","c":2}]}' | jpick -r '.items[] | "\(.n)=\(.c)"'
+```
+
+```text
+a=1
+b=2
+```
+
 ### Combine a path with pretty-print
 
 ```bash
@@ -233,6 +265,7 @@ echo '{"a":[1]}' | jpick '.a[5]'
 - `[n]` — index into an array (0-based)
 - `[]` — iterate over every element of an array (one result per element)
 - `|` — pipe: feed every result of one stage into the next
+- `"..."` — a string literal; `\(...)` interpolates the value of an inner path
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
 
