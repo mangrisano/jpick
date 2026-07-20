@@ -153,42 +153,32 @@ namespace jpick
         return serialize(value);
     }
 
-    // RFC 4648 base64 encoding of an arbitrary byte string.
+    // RFC 4648 base64 encoding of an arbitrary byte string. Uses a bit
+    // accumulator symmetric with base64_decode: every input byte adds 8 bits
+    // and each full group of 6 bits emits one character; leftover bits are
+    // zero-padded and the output is padded with '=' to a multiple of four.
     inline std::string base64_encode(const std::string &in)
     {
         static const char table[] =
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
         std::string out;
         out.reserve(((in.size() + 2) / 3) * 4);
-        std::size_t i = 0;
-        while (i + 3 <= in.size())
+        unsigned buffer = 0;
+        int bits = 0;
+        for (unsigned char c : in)
         {
-            const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
-                               (static_cast<unsigned char>(in[i + 1]) << 8) |
-                               (static_cast<unsigned char>(in[i + 2]));
-            out += table[(n >> 18) & 63];
-            out += table[(n >> 12) & 63];
-            out += table[(n >> 6) & 63];
-            out += table[n & 63];
-            i += 3;
+            buffer = (buffer << 8) | c;
+            bits += 8;
+            while (bits >= 6)
+            {
+                bits -= 6;
+                out += table[(buffer >> bits) & 63];
+            }
         }
-        const std::size_t rem = in.size() - i;
-        if (rem == 1)
-        {
-            const unsigned n = static_cast<unsigned char>(in[i]) << 16;
-            out += table[(n >> 18) & 63];
-            out += table[(n >> 12) & 63];
-            out += "==";
-        }
-        else if (rem == 2)
-        {
-            const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
-                               (static_cast<unsigned char>(in[i + 1]) << 8);
-            out += table[(n >> 18) & 63];
-            out += table[(n >> 12) & 63];
-            out += table[(n >> 6) & 63];
-            out += "=";
-        }
+        if (bits > 0)
+            out += table[(buffer << (6 - bits)) & 63];
+        while (out.size() % 4 != 0)
+            out += '=';
         return out;
     }
 
@@ -260,6 +250,21 @@ namespace jpick
         return out;
     }
 
+    // Join the elements of an array into one line, rendering each with `field`
+    // and separating them with `sep`. Shared by @sh, @csv and @tsv.
+    inline std::string join_row(const Array &arr, const std::string &sep,
+                                std::string (*field)(const Value &))
+    {
+        std::string out;
+        for (std::size_t i = 0; i < arr.size(); ++i)
+        {
+            if (i > 0)
+                out += sep;
+            out += field(arr[i]);
+        }
+        return out;
+    }
+
     // Escape a single scalar for a POSIX shell: strings are single-quoted
     // (inner ' becomes '\''), numbers and bools are emitted as-is. null,
     // arrays and objects cannot be escaped this way.
@@ -288,17 +293,7 @@ namespace jpick
     inline std::string sh_format(const Value &value)
     {
         if (value.is_array())
-        {
-            const Array &arr = value.as_array();
-            std::string out;
-            for (std::size_t i = 0; i < arr.size(); ++i)
-            {
-                if (i > 0)
-                    out += " ";
-                out += sh_scalar(arr[i]);
-            }
-            return out;
-        }
+            return join_row(value.as_array(), " ", sh_scalar);
         return sh_scalar(value);
     }
 
@@ -377,19 +372,10 @@ namespace jpick
             return Value(uri_encode(raw_value(value)));
         if (fmt == "@sh")
             return Value(sh_format(value));
-        if (fmt == "@csv" || fmt == "@tsv")
-        {
-            const Array &arr = value.as_array();
-            const std::string sep = (fmt == "@csv") ? "," : "\t";
-            std::string out;
-            for (std::size_t i = 0; i < arr.size(); ++i)
-            {
-                if (i > 0)
-                    out += sep;
-                out += (fmt == "@csv") ? csv_field(arr[i]) : tsv_field(arr[i]);
-            }
-            return Value(out);
-        }
+        if (fmt == "@csv")
+            return Value(join_row(value.as_array(), ",", csv_field));
+        if (fmt == "@tsv")
+            return Value(join_row(value.as_array(), "\t", tsv_field));
         throw std::runtime_error("Unknown format: " + fmt);
     }
 
