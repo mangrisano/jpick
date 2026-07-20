@@ -20,7 +20,9 @@ serializer.
 - Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
-- **Compact** or **pretty-printed** output
+- Format output with `@text`, `@json`, `@base64`, `@csv`, `@tsv`, like `jq`
+- **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
+- **Sort object keys** with `-S`/`--sort-keys`
 - **Raw** string output (`-r`/`--raw-output`), like `jq -r`
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
@@ -88,6 +90,9 @@ Options:
   -v,--version  Print version and exit
   -p,--pretty   Pretty-print the output
   -r,--raw-output  Output strings without quotes or escaping
+  -S,--sort-keys   Sort object keys in the output
+  --indent INT     Indent with N spaces (implies --pretty)
+  --tab            Indent with tabs (implies --pretty)
 ```
 
 > Output blocks below are shown as literal terminal output.
@@ -210,6 +215,52 @@ a=1
 b=2
 ```
 
+### Sort object keys
+
+`-S`/`--sort-keys` emits object keys in ascending order (recursively). Without
+it, keys keep the order of the source document:
+
+```bash
+echo '{"zebra":1,"apple":2,"mango":3}' | jpick -S
+```
+
+```text
+{"apple": 2, "mango": 3, "zebra": 1}
+```
+
+### Choose the indentation
+
+`--indent N` uses N spaces per level and `--tab` uses tabs; both imply
+`--pretty`:
+
+```bash
+echo '{"a":[1,2]}' | jpick --indent 4
+```
+
+```text
+{
+    "a": [
+        1,
+        2
+    ]
+}
+```
+
+### Format with `@`
+
+A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
+of scalars; `@base64`, `@json` and `@text` take any value. Combine with `-r`
+for clean output:
+
+```bash
+echo '[["anna",30,true],["luca",25,false]]' | jpick -r '.[] | @csv'
+```
+
+```text
+"anna",30,true
+"luca",25,false
+```
+
 ### Combine a path with pretty-print
 
 ```bash
@@ -266,6 +317,7 @@ echo '{"a":[1]}' | jpick '.a[5]'
 - `[]` — iterate over every element of an array (one result per element)
 - `|` — pipe: feed every result of one stage into the next
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
+- `@fmt` — format a value: `@text`, `@json`, `@base64`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
 
@@ -291,8 +343,8 @@ All library code lives in the `jpick` namespace.
 
 ## Notes and limitations
 
-- Object output key order is not preserved (objects use `std::unordered_map`).
-  This is valid JSON, but keys may appear in a different order than the input.
+- Object key order follows the source document; duplicate keys keep the last
+  value. Use `-S`/`--sort-keys` to emit keys in ascending order instead.
 - Unicode `\uXXXX` escape sequences are not decoded.
 
 ## License
