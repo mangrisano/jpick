@@ -153,6 +153,130 @@ namespace jpick
         return serialize(value);
     }
 
+    // RFC 4648 base64 encoding of an arbitrary byte string.
+    inline std::string base64_encode(const std::string &in)
+    {
+        static const char table[] =
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+        std::string out;
+        out.reserve(((in.size() + 2) / 3) * 4);
+        std::size_t i = 0;
+        while (i + 3 <= in.size())
+        {
+            const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
+                               (static_cast<unsigned char>(in[i + 1]) << 8) |
+                               (static_cast<unsigned char>(in[i + 2]));
+            out += table[(n >> 18) & 63];
+            out += table[(n >> 12) & 63];
+            out += table[(n >> 6) & 63];
+            out += table[n & 63];
+            i += 3;
+        }
+        const std::size_t rem = in.size() - i;
+        if (rem == 1)
+        {
+            const unsigned n = static_cast<unsigned char>(in[i]) << 16;
+            out += table[(n >> 18) & 63];
+            out += table[(n >> 12) & 63];
+            out += "==";
+        }
+        else if (rem == 2)
+        {
+            const unsigned n = (static_cast<unsigned char>(in[i]) << 16) |
+                               (static_cast<unsigned char>(in[i + 1]) << 8);
+            out += table[(n >> 18) & 63];
+            out += table[(n >> 12) & 63];
+            out += table[(n >> 6) & 63];
+            out += "=";
+        }
+        return out;
+    }
+
+    // Render one field of an @csv / @tsv row. Scalars only: strings are
+    // escaped, null becomes an empty field, arrays/objects are rejected.
+    inline std::string csv_field(const Value &value)
+    {
+        if (value.is_string())
+        {
+            std::string out = "\"";
+            for (char c : value.as_string())
+            {
+                if (c == '"')
+                    out += "\"\"";
+                else
+                    out += c;
+            }
+            out += "\"";
+            return out;
+        }
+        if (value.is_null())
+            return "";
+        if (value.is_bool() || value.is_number())
+            return serialize(value);
+        throw std::runtime_error("Cannot format an array or object as CSV");
+    }
+
+    inline std::string tsv_field(const Value &value)
+    {
+        if (value.is_string())
+        {
+            std::string out;
+            for (char c : value.as_string())
+            {
+                switch (c)
+                {
+                case '\t':
+                    out += "\\t";
+                    break;
+                case '\n':
+                    out += "\\n";
+                    break;
+                case '\r':
+                    out += "\\r";
+                    break;
+                case '\\':
+                    out += "\\\\";
+                    break;
+                default:
+                    out += c;
+                    break;
+                }
+            }
+            return out;
+        }
+        if (value.is_null())
+            return "";
+        if (value.is_bool() || value.is_number())
+            return serialize(value);
+        throw std::runtime_error("Cannot format an array or object as TSV");
+    }
+
+    // Apply a @format segment (e.g. @csv) to a single value, producing a
+    // string value. @csv/@tsv expect an array of scalars.
+    inline Value apply_format(const std::string &fmt, const Value &value)
+    {
+        if (fmt == "@text")
+            return Value(raw_value(value));
+        if (fmt == "@json")
+            return Value(serialize(value));
+        if (fmt == "@base64")
+            return Value(base64_encode(raw_value(value)));
+        if (fmt == "@csv" || fmt == "@tsv")
+        {
+            const Array &arr = value.as_array();
+            const std::string sep = (fmt == "@csv") ? "," : "\t";
+            std::string out;
+            for (std::size_t i = 0; i < arr.size(); ++i)
+            {
+                if (i > 0)
+                    out += sep;
+                out += (fmt == "@csv") ? csv_field(arr[i]) : tsv_field(arr[i]);
+            }
+            return Value(out);
+        }
+        throw std::runtime_error("Unknown format: " + fmt);
+    }
+
     // Forward declaration: interpolate evaluates the inner \( ... )
     // expressions with the full pipe machinery.
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr);
@@ -234,6 +358,11 @@ namespace jpick
             {
                 for (const Value &value : stream)
                     next.push_back(Value(interpolate(segment, value)));
+            }
+            else if (!segment.empty() && segment.front() == '@')
+            {
+                for (const Value &value : stream)
+                    next.push_back(apply_format(segment, value));
             }
             else
             {

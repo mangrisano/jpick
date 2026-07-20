@@ -83,40 +83,110 @@ TEST_CASE("serialize of a single-key object")
 }
 
 // -----------------------------------------------------------------------------
-// serialize(value, /*pretty=*/true): newlines + 2-space indent per level.
+// serialize(value, {.pretty = true}): newlines + 2-space indent per level.
 // We use single-key / index-only shapes so the output is deterministic.
 // -----------------------------------------------------------------------------
 TEST_CASE("serialize pretty-prints nested structures")
 {
     // Scalars are unchanged (no newline).
-    CHECK(serialize(parse_json("42"), true) == "42");
+    CHECK(serialize(parse_json("42"), {.pretty = true}) == "42");
 
     // Empty containers stay on one line.
-    CHECK(serialize(parse_json("[]"), true) == "[]");
-    CHECK(serialize(parse_json("{}"), true) == "{}");
+    CHECK(serialize(parse_json("[]"), {.pretty = true}) == "[]");
+    CHECK(serialize(parse_json("{}"), {.pretty = true}) == "{}");
 
     // A flat array: one element per line, 2-space indent, closing ] at depth 0.
-    CHECK(serialize(parse_json("[1, 2]"), true) == "[\n  1,\n  2\n]");
+    CHECK(serialize(parse_json("[1, 2]"), {.pretty = true}) == "[\n  1,\n  2\n]");
 
     // A single-key object holding an array: nested indentation grows.
-    CHECK(serialize(parse_json("{\"a\": [1]}"), true) ==
+    CHECK(serialize(parse_json("{\"a\": [1]}"), {.pretty = true}) ==
           "{\n  \"a\": [\n    1\n  ]\n}");
+}
+
+TEST_CASE("serialize honours a custom indent unit")
+{
+    // Four-space indentation.
+    CHECK(serialize(parse_json("[1, 2]"), {.pretty = true, .indent_unit = "    "}) == "[\n    1,\n    2\n]");
+
+    // Tab indentation, nesting grows one tab per level.
+    CHECK(serialize(parse_json("{\"a\": [1]}"), {.pretty = true, .indent_unit = "\t"}) ==
+          "{\n\t\"a\": [\n\t\t1\n\t]\n}");
+
+    // Zero-width indent: newlines but no indentation.
+    CHECK(serialize(parse_json("[1, 2]"), {.pretty = true, .indent_unit = ""}) == "[\n1,\n2\n]");
+}
+
+TEST_CASE("serialize can sort object keys")
+{
+    // Keys are emitted in ascending order, recursively into nested objects.
+    Value v = parse_json("{\"zebra\": 1, \"apple\": {\"delta\": 4, \"beta\": 2}}");
+    CHECK(serialize(v, {.sort_keys = true}) ==
+          "{\"apple\": {\"beta\": 2, \"delta\": 4}, \"zebra\": 1}");
+
+    // Without sorting, insertion order is preserved.
+    CHECK(serialize(v) == "{\"zebra\": 1, \"apple\": {\"delta\": 4, \"beta\": 2}}");
+}
+
+TEST_CASE("@format segments format the output")
+{
+    // base64 encoding matches RFC 4648, including padding.
+    CHECK(base64_encode("") == "");
+    CHECK(base64_encode("a,b") == "YSxi");
+    CHECK(base64_encode("hello") == "aGVsbG8=");
+
+    // @base64 applied through the pipe.
+    std::vector<Value> b = query_pipe(parse_json("\"a,b\""), "@base64");
+    REQUIRE(b.size() == 1);
+    CHECK(b[0].as_string() == "YSxi");
+
+    // @csv quotes strings, doubles inner quotes, and blanks null.
+    std::vector<Value> c = query_pipe(parse_json("[\"anna\", 30, true, null]"), "@csv");
+    REQUIRE(c.size() == 1);
+    CHECK(c[0].as_string() == "\"anna\",30,true,");
+
+    // @tsv escapes tabs in fields and separates with a real tab.
+    std::vector<Value> t = query_pipe(parse_json("[\"a\\tb\", \"c\"]"), "@tsv");
+    REQUIRE(t.size() == 1);
+    CHECK(t[0].as_string() == "a\\tb\tc");
+
+    // @json serializes the value to a JSON string; @text is the raw form.
+    CHECK(query_pipe(parse_json("{\"a\": 1}"), "@json")[0].as_string() == "{\"a\": 1}");
+    CHECK(query_pipe(parse_json("\"hi\""), "@text")[0].as_string() == "hi");
+
+    // @csv/@tsv need an array; unknown formats are rejected.
+    CHECK_THROWS_AS(query_pipe(parse_json("42"), "@csv"), std::exception);
+    CHECK_THROWS_AS(query_pipe(parse_json("1"), "@nope"), std::exception);
 }
 
 // -----------------------------------------------------------------------------
 // Round-trip: parse(serialize(parse(x))) must keep the same fields.
-// With multi-key objects we do NOT compare strings (unordered_map does not
-// guarantee ordering): we re-parse and query the fields.
 // -----------------------------------------------------------------------------
 TEST_CASE("round-trip of a multi-key object")
 {
     Value v = parse_json("{\"a\": 1, \"b\": [1, 2], \"c\": null}");
-    std::string text = serialize(v);   // key order unknown
-    Value reparsed = parse_json(text); // but it must be valid JSON
+    std::string text = serialize(v);   // keys stay in insertion order
+    Value reparsed = parse_json(text); // and it must be valid JSON
 
     CHECK(serialize(query(reparsed, "a")) == "1");
     CHECK(serialize(query(reparsed, "b")) == "[1, 2]");
     CHECK(serialize(query(reparsed, "c")) == "null");
+}
+
+// -----------------------------------------------------------------------------
+// Objects keep the insertion order of their keys, so serialization is
+// deterministic and mirrors the source document.
+// -----------------------------------------------------------------------------
+TEST_CASE("serialize preserves object key order")
+{
+    Value v = parse_json("{\"zebra\": 1, \"apple\": 2, \"mango\": 3}");
+    CHECK(serialize(v) == "{\"zebra\": 1, \"apple\": 2, \"mango\": 3}");
+}
+
+// A duplicate key keeps the last value at the original position.
+TEST_CASE("duplicate object keys keep the last value")
+{
+    Value v = parse_json("{\"a\": 1, \"b\": 2, \"a\": 9}");
+    CHECK(serialize(v) == "{\"a\": 9, \"b\": 2}");
 }
 
 // -----------------------------------------------------------------------------

@@ -18,13 +18,37 @@ int main(int argc, char *argv[])
     std::string file;
     bool pretty = false;
     bool raw = false;
+    bool tab = false;
+    bool sort_keys = false;
+    int indent_spaces = -1;
 
     app.add_option("path", path, "Query path, e.g. '.a.b[0]'");
     app.add_option("file", file, "JSON file to read (default: stdin)");
     app.add_flag("-p,--pretty", pretty, "Pretty-print the output");
     app.add_flag("-r,--raw-output", raw, "Output strings without quotes or escaping");
+    app.add_flag("-S,--sort-keys", sort_keys, "Sort object keys in the output");
+    auto *indent_opt = app.add_option("--indent", indent_spaces,
+                                      "Indent with N spaces (implies --pretty)")
+                           ->check(CLI::NonNegativeNumber);
+    app.add_flag("--tab", tab, "Indent with tabs (implies --pretty)")
+        ->excludes(indent_opt);
 
     CLI11_PARSE(app, argc, argv);
+
+    // Resolve the indentation unit. --tab or --indent imply pretty output.
+    std::string indent_unit = "  ";
+    if (tab)
+    {
+        indent_unit = "\t";
+        pretty = true;
+    }
+    else if (indent_spaces >= 0)
+    {
+        indent_unit = std::string(static_cast<std::size_t>(indent_spaces), ' ');
+        pretty = true;
+    }
+
+    SerializeOptions serialize_opts{pretty, indent_unit, sort_keys};
 
     std::string input;
     if (!file.empty())
@@ -57,7 +81,7 @@ int main(int argc, char *argv[])
             if (raw && result.is_string())
                 std::cout << result.as_string() << '\n';
             else
-                std::cout << serialize(result, pretty) << '\n';
+                std::cout << serialize(result, serialize_opts) << '\n';
         }
     }
     catch (const std::exception &e)
