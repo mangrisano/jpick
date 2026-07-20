@@ -23,7 +23,7 @@ namespace jpick
         {
             return tokens[pos++];
         }
-        
+
         const Token &expect(TokenType type)
         {
             const Token &tok = advance();
@@ -86,7 +86,22 @@ namespace jpick
                 const Token &key_tok = expect(TokenType::String);
                 std::string key = std::get<std::string>(key_tok.value);
                 expect(TokenType::Colon);
-                obj[key] = parse_value();
+                Value val = parse_value();
+
+                // Duplicate keys: keep the last value (like jq), reusing the
+                // original position; otherwise append to preserve order.
+                bool replaced = false;
+                for (auto &entry : obj)
+                {
+                    if (entry.first == key)
+                    {
+                        entry.second = std::move(val);
+                        replaced = true;
+                        break;
+                    }
+                }
+                if (!replaced)
+                    obj.emplace_back(std::move(key), std::move(val));
 
                 const Token &tok = advance();
                 if (tok.type == TokenType::Comma)

@@ -7,7 +7,7 @@
 
 #include <variant>
 #include <vector>
-#include <unordered_map>
+#include <utility>
 #include <string>
 #include <cstddef>
 #include <stdexcept>
@@ -17,7 +17,9 @@ namespace jpick
 
     struct Value;
     using Array = std::vector<Value>;
-    using Object = std::unordered_map<std::string, Value>;
+    // An object preserves the insertion order of its keys (like jq), so the
+    // serialized output mirrors the order of the source document.
+    using Object = std::vector<std::pair<std::string, Value>>;
 
     struct Value
     {
@@ -30,7 +32,36 @@ namespace jpick
         Value(const char *s) : data(std::string(s)) {}
         Value(std::nullptr_t) : data(nullptr) {}
 
-        bool operator==(const Value &other) const { return data == other.data; }
+        // Objects compare equal regardless of key order; everything else uses
+        // the variant's structural comparison.
+        bool operator==(const Value &other) const
+        {
+            if (is_object() && other.is_object())
+            {
+                const Object &a = as_object();
+                const Object &b = other.as_object();
+                if (a.size() != b.size())
+                    return false;
+                for (const auto &[key, val] : a)
+                {
+                    bool found = false;
+                    for (const auto &[other_key, other_val] : b)
+                    {
+                        if (other_key == key)
+                        {
+                            if (!(val == other_val))
+                                return false;
+                            found = true;
+                            break;
+                        }
+                    }
+                    if (!found)
+                        return false;
+                }
+                return true;
+            }
+            return data == other.data;
+        }
 
         bool is_string() const { return std::holds_alternative<std::string>(data); }
         bool is_number() const { return std::holds_alternative<double>(data); }
@@ -45,7 +76,7 @@ namespace jpick
                 return *p;
             throw std::runtime_error("Value is not a String");
         }
-        
+
         double as_number() const
         {
             if (const double *p = std::get_if<double>(&data))
@@ -77,12 +108,12 @@ namespace jpick
         const Value &operator[](const std::string &key) const
         {
             const Object &obj = as_object();
-            auto it = obj.find(key);
-            if (it == obj.end())
-                throw std::runtime_error("Field does not exist");
-            return it->second;
+            for (const auto &[k, v] : obj)
+                if (k == key)
+                    return v;
+            throw std::runtime_error("Field does not exist");
         }
-        
+
         const Value &operator[](std::size_t index) const
         {
             const Array &arr = as_array();
