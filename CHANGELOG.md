@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-07-31
+
 ### Added
 
 - String predicates **`startswith("s")`** and **`endswith("s")`**, which pair
@@ -162,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.1.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.2.0...HEAD
+[2.2.0]: https://github.com/mangrisano/jpick/releases/tag/v2.2.0
 [2.1.0]: https://github.com/mangrisano/jpick/releases/tag/v2.1.0
 [2.0.0]: https://github.com/mangrisano/jpick/releases/tag/v2.0.0
 [1.5.0]: https://github.com/mangrisano/jpick/releases/tag/v1.5.0
