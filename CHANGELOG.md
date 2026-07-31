@@ -5,6 +5,39 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [2.0.0] - 2026-07-31
+
+### Added
+
+- Builtin function **`length`**: returns the number of elements in an array or
+  object, or the number of characters in a string. Other types return `null`.
+  Usage: `jpick '.users | length'` (like `jq`).
+- Builtin function **`keys`**: returns an array of an object's keys (sorted
+  alphabetically) or an array's indices. Usage: `jpick 'keys'` (like `jq`).
+- Builtin function **`type`**: returns the JSON type of a value as a string
+  (`"null"`, `"boolean"`, `"number"`, `"string"`, `"array"`, or `"object"`).
+  Usage: `jpick 'type'` (like `jq`).
+- Builtin function **`has`**: tests whether an object has a given key, e.g.
+  `jpick 'has("age")'`. Non-objects return `false` (like `jq`).
+- Builtin function **`not`**: negates a boolean, e.g. `jpick 'has("age") | not'`
+  (like `jq`).
+- Builtin function **`empty`**: produces no output, removing the value from the
+  stream (like `jq`).
+- **Array slicing** `[start:end]`: extracts a sub-array, e.g. `jpick '.[1:3]'`.
+  Both bounds are optional (`[:2]`, `[2:]`) and negative indices count from the
+  end (`[-2:]`); out-of-range bounds are clamped (like `jq`).
+
+### Changed
+
+- **BREAKING**: Accessing a field that does not exist (e.g. `.missing`) now
+  returns `null` instead of throwing an error, matching `jq` behavior. This
+  makes it safe to query optional fields in real-world data where not all
+  objects have the same shape.
+- **BREAKING**: Accessing an array index that is out of range (e.g. `.[999]`)
+  now returns `null` instead of throwing an error, matching `jq` behavior.
+
 ## [1.5.0] - 2026-07-20
 
 ### Added
@@ -75,7 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/mangrisano/jpick/releases/tag/v2.0.0
 [1.5.0]: https://github.com/mangrisano/jpick/releases/tag/v1.5.0
 [1.4.0]: https://github.com/mangrisano/jpick/releases/tag/v1.4.0
 [1.3.0]: https://github.com/mangrisano/jpick/releases/tag/v1.3.0
