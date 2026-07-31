@@ -851,6 +851,39 @@ TEST_CASE("query_pipe dispatches the scalar builtins")
 }
 
 // -----------------------------------------------------------------------------
+// map(expr) and fromjson
+// -----------------------------------------------------------------------------
+TEST_CASE("map applies an expression to every element")
+{
+    // Transform each element.
+    CHECK(query_pipe(parse_json("[1, 2, 3]"), "map(tostring)")[0] ==
+          parse_json("[\"1\", \"2\", \"3\"]"));
+
+    // Extract a field from each object, then aggregate.
+    CHECK(query_pipe(parse_json("[{\"n\":1},{\"n\":2},{\"n\":3}]"), "map(.n) | add")[0]
+              .as_number() == doctest::Approx(6.0));
+
+    // map composes with select and a pipe inside it.
+    CHECK(query_pipe(parse_json("[{\"a\":1,\"ok\":true},{\"a\":2,\"ok\":false},{\"a\":3,\"ok\":true}]"),
+                     "map(select(.ok) | .a)")[0] == parse_json("[1, 3]"));
+}
+
+TEST_CASE("fromjson parses a JSON string into a value")
+{
+    CHECK(query_pipe(parse_json("\"{\\\"x\\\":1}\""), "fromjson | .x")[0].as_number() ==
+          doctest::Approx(1.0));
+    CHECK(query_pipe(parse_json("\"[1,2,3]\""), "fromjson | add")[0].as_number() ==
+          doctest::Approx(6.0));
+
+    // A round-trip with @json is the identity.
+    CHECK(query_pipe(parse_json("{\"a\":[1,2]}"), "@json | fromjson")[0] ==
+          parse_json("{\"a\":[1,2]}"));
+
+    // Malformed JSON throws.
+    CHECK_THROWS_AS(query_pipe(parse_json("\"{bad\""), "fromjson"), std::exception);
+}
+
+// -----------------------------------------------------------------------------
 // Alternative operator // and scalar literals
 // -----------------------------------------------------------------------------
 TEST_CASE("split_alternative splits on top-level // only")

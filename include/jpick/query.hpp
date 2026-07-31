@@ -15,6 +15,8 @@
 #include <cctype>
 #include "jpick/json.hpp"
 #include "jpick/serializer.hpp"
+#include "jpick/lexer.hpp"
+#include "jpick/parser.hpp"
 
 namespace jpick
 {
@@ -919,6 +921,17 @@ namespace jpick
         return Value(serialize(value));
     }
 
+    // Parse a string that contains JSON into the corresponding value (the
+    // inverse of @json), e.g. to decode a JSON-encoded field. Non-strings and
+    // malformed JSON throw.
+    inline Value builtin_fromjson(const Value &value)
+    {
+        const std::string &s = value.as_string();
+        std::vector<Token> tokens = tokenize(s);
+        Parser parser(tokens);
+        return parser.parse();
+    }
+
     // Lowercase the ASCII letters A-Z of a string; other bytes are unchanged.
     inline Value builtin_ascii_downcase(const Value &value)
     {
@@ -1054,6 +1067,7 @@ namespace jpick
             {"last", builtin_last},
             {"tonumber", builtin_tonumber},
             {"tostring", builtin_tostring},
+            {"fromjson", builtin_fromjson},
             {"ascii_downcase", builtin_ascii_downcase},
             {"ascii_upcase", builtin_ascii_upcase},
         };
@@ -1181,6 +1195,17 @@ namespace jpick
                 if (is_truthy(result))
                     return {value}; // at least one truthy result: keep the value
             return {};              // otherwise drop it
+        }
+        if (segment.rfind("map(", 0) == 0)
+        {
+            const std::string inner = parse_call_arg(segment, "map");
+            Array out;
+            for (const Value &element : value.as_array())
+            {
+                std::vector<Value> results = query_pipe(element, inner);
+                out.insert(out.end(), results.begin(), results.end());
+            }
+            return {Value(std::move(out))};
         }
         if (segment.rfind("has(", 0) == 0)
             return {builtin_has(value, parse_string_arg(segment, "has"))};
