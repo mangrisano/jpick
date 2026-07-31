@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785531834060,
+  "lastUpdate": 1785535186083,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -38,6 +38,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 413.604,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "eae2955294d2ae4e846ff14aa9ae6403e2c17724",
+          "message": "docs: add minimal .[jpick] logo with light/dark variants",
+          "timestamp": "2026-07-31T23:58:53+02:00",
+          "tree_id": "e0661e12d73de9830650890a89301de9bf8b5920",
+          "url": "https://github.com/mangrisano/jpick/commit/eae2955294d2ae4e846ff14aa9ae6403e2c17724"
+        },
+        "date": 1785535185243,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 490.604,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 520.542,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 400.978,
             "unit": "ms"
           }
         ]
