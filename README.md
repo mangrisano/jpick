@@ -20,7 +20,9 @@ serializer.
 - **jq-compatible** behavior: missing fields and out-of-range indices return `null` instead of an error
 - Query values with a path expression: object keys, **array indices**, **slices** (`[1:3]`), and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
-- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty` (jq-compatible)
+- Provide defaults with the **alternative** operator (`//`): `.price // 0`
+- **Filter** a stream with `select(...)`: `.users[] | select(.active)`
+- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -209,6 +211,50 @@ echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[] | .name'
 "luca"
 ```
 
+### Provide a default with `//`
+
+The alternative operator `//` yields its left-hand side unless that is `null`,
+`false`, or missing (or raises an error) — otherwise it falls back to the
+right-hand side. It is the idiomatic way to supply defaults (like `jq`):
+
+```bash
+echo '{"name":"anna"}' | jpick '.age // 0'
+```
+
+```text
+0
+```
+
+Alternatives can be chained; the first present value wins:
+
+```bash
+echo '{"nickname":"nino"}' | jpick -r '.name // .nickname // "anonymous"'
+```
+
+```text
+nino
+```
+
+### Filter with `select`
+
+`select(expr)` keeps the current value only when `expr` is truthy (anything
+other than `null` or `false`), and drops it otherwise — the idiomatic way to
+filter a stream (like `jq`). The inner expression can be any path, `has(...)`,
+or a `//` fallback:
+
+```bash
+echo '{"users":[{"name":"anna","active":true},{"name":"luca","active":false}]}' \
+  | jpick -r '.users[] | select(.active) | .name'
+```
+
+```text
+anna
+```
+
+Because a missing field is `null` (falsy), `select` safely skips values that
+lack the field instead of erroring. `jpick` keeps this deliberately small: for
+comparisons like `select(.age > 18)`, reach for `jq`.
+
 ### Interpolate values into a string
 
 A `"..."` segment builds a string, replacing every `\(...)` with the value the
@@ -390,6 +436,73 @@ echo '[1,2,3]' | jpick '.[] | empty'
 
 ```
 
+### Builtins: `add`, `min`, `max`
+
+`add` sums an array of numbers, concatenates an array of strings or arrays, or
+merges an array of objects. `min` and `max` return the smallest/largest element:
+
+```bash
+echo '[1,2,3,4]' | jpick 'add'
+```
+
+```text
+10
+```
+
+```bash
+echo '{"prices":[9,3,7]}' | jpick '.prices | max'
+```
+
+```text
+9
+```
+
+### Builtins: `sort`, `unique`, `reverse`
+
+`sort` orders an array, `unique` sorts and removes duplicates, `reverse`
+reverses an array (or a string):
+
+```bash
+echo '[3,1,2,1]' | jpick 'unique'
+```
+
+```text
+[1, 2, 3]
+```
+
+### Builtins: `first`, `last`
+
+Return the first or last element of an array (`null` if empty):
+
+```bash
+echo '{"items":[10,20,30]}' | jpick '.items | first'
+```
+
+```text
+10
+```
+
+### Builtins: `join`, `split`
+
+`join(sep)` joins an array into a string; `split(sep)` splits a string into an
+array. Pair `join` with `-r` for clean output:
+
+```bash
+echo '{"tags":["red","green","blue"]}' | jpick -r '.tags | join(", ")'
+```
+
+```text
+red, green, blue
+```
+
+```bash
+echo '"a,b,c"' | jpick 'split(",")'
+```
+
+```text
+["a", "b", "c"]
+```
+
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
@@ -479,7 +592,11 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `[start:end]` — slice an array; bounds optional, negative indices allowed
 - `[]` — iterate over every element of an array (one result per element)
 - `|` — pipe: feed every result of one stage into the next
+- `//` — alternative: fall back when the left side is `null`, `false`, or missing
 - `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
+- `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last` — aggregate builtins
+- `join("sep")`, `split("sep")` — string/array builtins
+- `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
