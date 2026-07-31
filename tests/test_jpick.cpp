@@ -175,6 +175,34 @@ TEST_CASE("@base64d decodes and round-trips with @base64")
     CHECK(r[0].as_string() == "a,b");
 }
 
+TEST_CASE("@base32 encodes and round-trips with @base32d")
+{
+    // RFC 4648 test vectors.
+    CHECK(base32_encode("") == "");
+    CHECK(base32_encode("f") == "MY======");
+    CHECK(base32_encode("fo") == "MZXQ====");
+    CHECK(base32_encode("foo") == "MZXW6===");
+    CHECK(base32_encode("foobar") == "MZXW6YTBOI======");
+
+    // Decoding reverses it; lowercase and whitespace are tolerated.
+    CHECK(base32_decode("MZXW6YTBOI======") == "foobar");
+    CHECK(base32_decode("mzxw6===") == "foo");
+    CHECK_THROWS_AS(base32_decode("0189"), std::exception);
+
+    // Round-trip through the pipe.
+    std::vector<Value> r = query_pipe(parse_json("\"hello\""), "@base32 | @base32d");
+    REQUIRE(r.size() == 1);
+    CHECK(r[0].as_string() == "hello");
+}
+
+TEST_CASE("@html escapes markup characters")
+{
+    CHECK(query_pipe(parse_json("\"<b>R&D</b>\""), "@html")[0].as_string() ==
+          "&lt;b&gt;R&amp;D&lt;/b&gt;");
+    CHECK(query_pipe(parse_json("\"a'b\\\"c\""), "@html")[0].as_string() ==
+          "a&#39;b&quot;c");
+}
+
 TEST_CASE("@uri percent-encodes reserved characters")
 {
     CHECK(query_pipe(parse_json("\"hello world\""), "@uri")[0].as_string() ==

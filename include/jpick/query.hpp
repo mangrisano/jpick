@@ -287,6 +287,71 @@ namespace jpick
         return out;
     }
 
+    // RFC 4648 base32 encoding. A bit accumulator emits one character per 5
+    // bits; leftover bits are zero-padded and the output is padded with '=' to
+    // a multiple of eight.
+    inline std::string base32_encode(const std::string &in)
+    {
+        static const char table[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+        std::string out;
+        unsigned buffer = 0;
+        int bits = 0;
+        for (unsigned char c : in)
+        {
+            buffer = (buffer << 8) | c;
+            bits += 8;
+            while (bits >= 5)
+            {
+                bits -= 5;
+                out += table[(buffer >> bits) & 31];
+            }
+        }
+        if (bits > 0)
+            out += table[(buffer << (5 - bits)) & 31];
+        while (out.size() % 8 != 0)
+            out += '=';
+        return out;
+    }
+
+    // RFC 4648 base32 decoding. Whitespace is ignored, '=' ends the data, and
+    // any other character is rejected (lowercase letters are accepted). A 5-bit
+    // accumulator emits one byte per full group of 8 bits.
+    inline std::string base32_decode(const std::string &in)
+    {
+        const auto quintet = [](char c) -> int
+        {
+            if (c >= 'A' && c <= 'Z')
+                return c - 'A';
+            if (c >= 'a' && c <= 'z')
+                return c - 'a';
+            if (c >= '2' && c <= '7')
+                return c - '2' + 26;
+            return -1;
+        };
+
+        std::string out;
+        unsigned buffer = 0;
+        int bits = 0;
+        for (char c : in)
+        {
+            if (c == '=')
+                break;
+            if (c == '\n' || c == '\r' || c == '\t' || c == ' ')
+                continue;
+            const int value = quintet(c);
+            if (value < 0)
+                throw std::runtime_error("Invalid base32 input");
+            buffer = (buffer << 5) | static_cast<unsigned>(value);
+            bits += 5;
+            if (bits >= 8)
+            {
+                bits -= 8;
+                out += static_cast<char>((buffer >> bits) & 0xFF);
+            }
+        }
+        return out;
+    }
+
     // Percent-encode a string for use in a URI (RFC 3986). The unreserved
     // characters A-Z a-z 0-9 - _ . ~ are kept; everything else becomes %XX.
     inline std::string uri_encode(const std::string &in)
@@ -307,6 +372,38 @@ namespace jpick
                 out += '%';
                 out += hex[uc >> 4];
                 out += hex[uc & 0x0F];
+            }
+        }
+        return out;
+    }
+
+    // Escape a string for safe inclusion in HTML (like jq's @html): the
+    // characters & < > ' " become their entity references.
+    inline std::string html_escape(const std::string &in)
+    {
+        std::string out;
+        for (char c : in)
+        {
+            switch (c)
+            {
+            case '&':
+                out += "&amp;";
+                break;
+            case '<':
+                out += "&lt;";
+                break;
+            case '>':
+                out += "&gt;";
+                break;
+            case '\'':
+                out += "&#39;";
+                break;
+            case '"':
+                out += "&quot;";
+                break;
+            default:
+                out += c;
+                break;
             }
         }
         return out;
@@ -430,8 +527,14 @@ namespace jpick
             return Value(base64_encode(raw_value(value)));
         if (fmt == "@base64d")
             return Value(base64_decode(raw_value(value)));
+        if (fmt == "@base32")
+            return Value(base32_encode(raw_value(value)));
+        if (fmt == "@base32d")
+            return Value(base32_decode(raw_value(value)));
         if (fmt == "@uri")
             return Value(uri_encode(raw_value(value)));
+        if (fmt == "@html")
+            return Value(html_escape(raw_value(value)));
         if (fmt == "@sh")
             return Value(sh_format(value));
         if (fmt == "@csv")
