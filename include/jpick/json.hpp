@@ -109,10 +109,13 @@ namespace jpick
             throw std::runtime_error("Value is not an Object");
         }
 
-        // Access an object field by key. Returns null if the key does not
-        // exist (like jq), making it safe to query optional fields.
+        // Access an object field by key. Returns null if the value is null or
+        // the key does not exist (like jq), making it safe to query optional
+        // or deeply nested fields.
         Value operator[](const std::string &key) const
         {
+            if (is_null())
+                return Value(nullptr);
             const Object &obj = as_object();
             for (const auto &[k, v] : obj)
                 if (k == key)
@@ -120,10 +123,13 @@ namespace jpick
             return Value(nullptr);
         }
 
-        // Access an array element by index. Returns null if the index is out
-        // of range (like jq), making it safe to query variable-length arrays.
+        // Access an array element by index. Returns null if the value is null
+        // or the index is out of range (like jq), making it safe to query
+        // variable-length arrays.
         Value operator[](std::size_t index) const
         {
+            if (is_null())
+                return Value(nullptr);
             const Array &arr = as_array();
             if (index >= arr.size())
                 return Value(nullptr);

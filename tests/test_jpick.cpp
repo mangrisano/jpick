@@ -672,3 +672,186 @@ TEST_CASE("query_path slices arrays")
     // Out-of-range bounds are clamped, not an error.
     CHECK(query_path(arr, split_path(".[10:20]"))[0] == parse_json("[]"));
 }
+
+// -----------------------------------------------------------------------------
+// Aggregate and array builtins: add, sort, unique, reverse, min, max,
+// first, last, join, split
+// -----------------------------------------------------------------------------
+TEST_CASE("builtin_add sums, concatenates or merges")
+{
+    CHECK(builtin_add(parse_json("[1, 2, 3]")).as_number() == doctest::Approx(6.0));
+    CHECK(builtin_add(parse_json("[\"a\", \"b\"]")).as_string() == "ab");
+    CHECK(builtin_add(parse_json("[[1], [2, 3]]")) == parse_json("[1, 2, 3]"));
+    CHECK(builtin_add(parse_json("[{\"a\":1}, {\"b\":2}]")) == parse_json("{\"a\":1,\"b\":2}"));
+
+    // Later keys win when merging objects.
+    CHECK(builtin_add(parse_json("[{\"a\":1}, {\"a\":2}]")) == parse_json("{\"a\":2}"));
+
+    // Empty array yields null.
+    CHECK(builtin_add(parse_json("[]")).is_null());
+}
+
+TEST_CASE("builtin_sort and builtin_unique order and dedupe")
+{
+    CHECK(builtin_sort(parse_json("[3, 1, 2]")) == parse_json("[1, 2, 3]"));
+    CHECK(builtin_sort(parse_json("[\"b\", \"a\", \"c\"]")) == parse_json("[\"a\", \"b\", \"c\"]"));
+
+    // Mixed types follow jq ordering: null < bool < number < string.
+    CHECK(builtin_sort(parse_json("[\"x\", 1, null, true]")) ==
+          parse_json("[null, true, 1, \"x\"]"));
+
+    CHECK(builtin_unique(parse_json("[3, 1, 2, 1, 3]")) == parse_json("[1, 2, 3]"));
+}
+
+TEST_CASE("builtin_reverse reverses arrays and strings")
+{
+    CHECK(builtin_reverse(parse_json("[1, 2, 3]")) == parse_json("[3, 2, 1]"));
+    CHECK(builtin_reverse(parse_json("\"abc\"")).as_string() == "cba");
+}
+
+TEST_CASE("builtin_min, builtin_max, builtin_first, builtin_last")
+{
+    Value arr = parse_json("[3, 1, 2]");
+    CHECK(builtin_min(arr).as_number() == doctest::Approx(1.0));
+    CHECK(builtin_max(arr).as_number() == doctest::Approx(3.0));
+    CHECK(builtin_first(arr).as_number() == doctest::Approx(3.0));
+    CHECK(builtin_last(arr).as_number() == doctest::Approx(2.0));
+
+    // Empty array yields null for all of them.
+    Value empty = parse_json("[]");
+    CHECK(builtin_min(empty).is_null());
+    CHECK(builtin_max(empty).is_null());
+    CHECK(builtin_first(empty).is_null());
+    CHECK(builtin_last(empty).is_null());
+}
+
+TEST_CASE("builtin_join and builtin_split")
+{
+    CHECK(builtin_join(parse_json("[\"a\", \"b\", \"c\"]"), ", ").as_string() == "a, b, c");
+
+    // null contributes nothing, numbers are stringified.
+    CHECK(builtin_join(parse_json("[\"a\", null, 2]"), "-").as_string() == "a--2");
+
+    CHECK(builtin_split(parse_json("\"a,b,c\""), ",") == parse_json("[\"a\", \"b\", \"c\"]"));
+
+    // A separator not present yields a single-element array.
+    CHECK(builtin_split(parse_json("\"abc\""), ",") == parse_json("[\"abc\"]"));
+
+    // An empty separator is an error.
+    CHECK_THROWS_AS(builtin_split(parse_json("\"abc\""), ""), std::exception);
+}
+
+TEST_CASE("query_pipe dispatches the new builtins")
+{
+    CHECK(query_pipe(parse_json("{\"nums\":[3,1,2]}"), ".nums | sort")[0] ==
+          parse_json("[1, 2, 3]"));
+    CHECK(query_pipe(parse_json("{\"nums\":[1,2,3]}"), ".nums | add")[0].as_number() ==
+          doctest::Approx(6.0));
+    CHECK(query_pipe(parse_json("{\"tags\":[\"x\",\"y\"]}"), ".tags | join(\"-\")")[0].as_string() ==
+          "x-y");
+    CHECK(query_pipe(parse_json("{\"csv\":\"a,b\"}"), ".csv | split(\",\")")[0] ==
+          parse_json("[\"a\", \"b\"]"));
+}
+
+// -----------------------------------------------------------------------------
+// Alternative operator // and scalar literals
+// -----------------------------------------------------------------------------
+TEST_CASE("split_alternative splits on top-level // only")
+{
+    std::vector<std::string> parts = split_alternative(".a // .b // 0");
+    REQUIRE(parts.size() == 3);
+    CHECK(parts[0] == ".a");
+    CHECK(parts[1] == ".b");
+    CHECK(parts[2] == "0");
+
+    // A // inside a string literal does not split.
+    std::vector<std::string> one = split_alternative("\"a // b\"");
+    REQUIRE(one.size() == 1);
+    CHECK(one[0] == "\"a // b\"");
+}
+
+TEST_CASE("try_scalar_literal recognizes JSON scalars")
+{
+    Value out;
+    CHECK(try_scalar_literal("true", out));
+    CHECK(out.as_bool() == true);
+    CHECK(try_scalar_literal("false", out));
+    CHECK(out.as_bool() == false);
+    CHECK(try_scalar_literal("null", out));
+    CHECK(out.is_null());
+    CHECK(try_scalar_literal("42", out));
+    CHECK(out.as_number() == doctest::Approx(42.0));
+    CHECK(try_scalar_literal("-3.5", out));
+    CHECK(out.as_number() == doctest::Approx(-3.5));
+
+    // Paths and words are not literals.
+    CHECK_FALSE(try_scalar_literal(".a", out));
+    CHECK_FALSE(try_scalar_literal("length", out));
+    CHECK_FALSE(try_scalar_literal("12abc", out));
+}
+
+TEST_CASE("query_pipe applies the alternative operator //")
+{
+    // null and missing fall back; false falls back too.
+    CHECK(query_pipe(parse_json("{\"a\":null}"), ".a // 0")[0].as_number() == doctest::Approx(0.0));
+    CHECK(query_pipe(parse_json("{}"), ".x // 42")[0].as_number() == doctest::Approx(42.0));
+    CHECK(query_pipe(parse_json("{\"a\":false}"), ".a // true")[0].as_bool() == true);
+
+    // A present, truthy value wins; 0 is truthy.
+    CHECK(query_pipe(parse_json("{\"a\":5}"), ".a // 9")[0].as_number() == doctest::Approx(5.0));
+    CHECK(query_pipe(parse_json("{\"a\":0}"), ".a // 9")[0].as_number() == doctest::Approx(0.0));
+
+    // Chained alternatives pick the first present value.
+    CHECK(query_pipe(parse_json("{\"b\":7}"), ".a // .b // 0")[0].as_number() == doctest::Approx(7.0));
+
+    // An error in an earlier alternative is ignored in favor of the fallback.
+    CHECK(query_pipe(parse_json("42"), ".foo // 99")[0].as_number() == doctest::Approx(99.0));
+}
+
+// -----------------------------------------------------------------------------
+// select(expr): keep values for which expr is truthy
+// -----------------------------------------------------------------------------
+TEST_CASE("query_pipe filters with select")
+{
+    Value v = parse_json("{\"users\":[{\"name\":\"anna\",\"active\":true},"
+                         "{\"name\":\"luca\",\"active\":false},"
+                         "{\"name\":\"sara\",\"active\":true}]}");
+
+    // Keep only active users, then take their names.
+    std::vector<Value> names = query_pipe(v, ".users[] | select(.active) | .name");
+    REQUIRE(names.size() == 2);
+    CHECK(names[0] == Value("anna"));
+    CHECK(names[1] == Value("sara"));
+
+    // A missing field is falsy, not an error: it just filters the value out.
+    std::vector<Value> some = query_pipe(parse_json("[{\"active\":true},{\"x\":1}]"),
+                                         ".[] | select(.active)");
+    REQUIRE(some.size() == 1);
+    CHECK(some[0] == parse_json("{\"active\":true}"));
+
+    // select with has() as the predicate.
+    std::vector<Value> withA = query_pipe(parse_json("[{\"a\":1},{\"b\":2},{\"a\":3}]"),
+                                          ".[] | select(has(\"a\")) | .a");
+    REQUIRE(withA.size() == 2);
+    CHECK(withA[0].as_number() == doctest::Approx(1.0));
+    CHECK(withA[1].as_number() == doctest::Approx(3.0));
+
+    // No match yields an empty stream.
+    std::vector<Value> none = query_pipe(parse_json("[{\"active\":false}]"),
+                                         ".[] | select(.active)");
+    CHECK(none.empty());
+}
+
+TEST_CASE("split_pipe and split_alternative are paren-aware")
+{
+    // A '|' inside parentheses does not split the pipe.
+    std::vector<std::string> segs = split_pipe(".a | select(.b | .c)");
+    REQUIRE(segs.size() == 2);
+    CHECK(segs[0] == ".a");
+    CHECK(segs[1] == "select(.b | .c)");
+
+    // A '//' inside parentheses does not split the alternative.
+    std::vector<std::string> parts = split_alternative("select(.n // 0)");
+    REQUIRE(parts.size() == 1);
+    CHECK(parts[0] == "select(.n // 0)");
+}

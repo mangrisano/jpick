@@ -10,6 +10,9 @@
 #include <vector>
 #include <variant>
 #include <algorithm>
+#include <map>
+#include <charconv>
+#include <cctype>
 #include "jpick/json.hpp"
 #include "jpick/serializer.hpp"
 
@@ -112,13 +115,14 @@ namespace jpick
     }
 
     // Split a pipe expression like ".a | .b" into its trimmed segments.
-    // Quote-aware: a '|' inside a string literal (e.g. "a|b" or an
-    // interpolation "\(.a | .b)") does not split the expression.
+    // Quote-aware and paren-aware: a '|' inside a string literal (e.g. "a|b")
+    // or inside parentheses (e.g. select(.a | .b)) does not split.
     inline std::vector<std::string> split_pipe(const std::string &expr)
     {
         std::vector<std::string> segments;
         std::string current;
         bool in_string = false;
+        int depth = 0;
         for (std::size_t i = 0; i < expr.size(); ++i)
         {
             const char c = expr[i];
@@ -135,7 +139,12 @@ namespace jpick
                 current += expr[i + 1];
                 ++i;
             }
-            else if (c == '|' && !in_string)
+            else if (!in_string && (c == '(' || c == ')'))
+            {
+                depth += (c == '(') ? 1 : -1;
+                current += c;
+            }
+            else if (c == '|' && !in_string && depth == 0)
             {
                 segments.push_back(trim(current));
                 current.clear();
@@ -567,6 +576,217 @@ namespace jpick
         throw std::runtime_error("not only works on booleans");
     }
 
+    // Sort the keys of an object into a new vector. Helper for value_less.
+    inline std::vector<std::string> as_sorted_keys(const Value &value)
+    {
+        std::vector<std::string> keys;
+        for (const auto &[k, v] : value.as_object())
+            keys.push_back(k);
+        std::sort(keys.begin(), keys.end());
+        return keys;
+    }
+
+    // Order rank of each JSON type, following jq's total ordering:
+    // null < booleans < numbers < strings < arrays < objects.
+    inline int type_rank(const Value &value)
+    {
+        if (value.is_null())
+            return 0;
+        if (value.is_bool())
+            return 1;
+        if (value.is_number())
+            return 2;
+        if (value.is_string())
+            return 3;
+        if (value.is_array())
+            return 4;
+        return 5; // object
+    }
+
+    // Total ordering over JSON values, matching jq. Used by sort, unique,
+    // min and max. Values of different types are ordered by `type_rank`;
+    // within a type they compare naturally (arrays and objects recursively).
+    inline bool value_less(const Value &a, const Value &b)
+    {
+        const int ra = type_rank(a);
+        const int rb = type_rank(b);
+        if (ra != rb)
+            return ra < rb;
+        switch (ra)
+        {
+        case 0: // null
+            return false;
+        case 1: // bool: false < true
+            return !a.as_bool() && b.as_bool();
+        case 2: // number
+            return a.as_number() < b.as_number();
+        case 3: // string
+            return a.as_string() < b.as_string();
+        case 4: // array: element-wise, then by length
+        {
+            const Array &aa = a.as_array();
+            const Array &ba = b.as_array();
+            const std::size_t n = std::min(aa.size(), ba.size());
+            for (std::size_t i = 0; i < n; ++i)
+            {
+                if (value_less(aa[i], ba[i]))
+                    return true;
+                if (value_less(ba[i], aa[i]))
+                    return false;
+            }
+            return aa.size() < ba.size();
+        }
+        default: // object: compare sorted key lists, then values in that order
+        {
+            std::vector<std::string> ak = as_sorted_keys(a);
+            std::vector<std::string> bk = as_sorted_keys(b);
+            if (ak != bk)
+                return ak < bk;
+            for (const std::string &k : ak)
+            {
+                const Value av = a[k];
+                const Value bv = b[k];
+                if (value_less(av, bv))
+                    return true;
+                if (value_less(bv, av))
+                    return false;
+            }
+            return false;
+        }
+        }
+    }
+
+    // Sum an array of numbers, concatenate an array of strings or arrays, or
+    // merge an array of objects (later keys win). An empty array yields null.
+    inline Value builtin_add(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        if (arr.empty())
+            return Value(nullptr);
+        if (arr[0].is_number())
+        {
+            double sum = 0;
+            for (const Value &v : arr)
+                sum += v.as_number();
+            return Value(sum);
+        }
+        if (arr[0].is_string())
+        {
+            std::string out;
+            for (const Value &v : arr)
+                out += v.as_string();
+            return Value(out);
+        }
+        if (arr[0].is_array())
+        {
+            Array out;
+            for (const Value &v : arr)
+            {
+                const Array &inner = v.as_array();
+                out.insert(out.end(), inner.begin(), inner.end());
+            }
+            return Value(std::move(out));
+        }
+        if (arr[0].is_object())
+        {
+            Object out;
+            for (const Value &v : arr)
+                for (const auto &[k, val] : v.as_object())
+                {
+                    bool found = false;
+                    for (auto &pair : out)
+                        if (pair.first == k)
+                        {
+                            pair.second = val;
+                            found = true;
+                            break;
+                        }
+                    if (!found)
+                        out.emplace_back(k, val);
+                }
+            return Value(std::move(out));
+        }
+        throw std::runtime_error("Cannot add these values");
+    }
+
+    // Return the array sorted in ascending order (jq's total ordering).
+    inline Value builtin_sort(const Value &value)
+    {
+        Array arr = value.as_array();
+        std::sort(arr.begin(), arr.end(), value_less);
+        return Value(std::move(arr));
+    }
+
+    // Return the array sorted with duplicate values removed.
+    inline Value builtin_unique(const Value &value)
+    {
+        Array arr = value.as_array();
+        std::sort(arr.begin(), arr.end(), value_less);
+        arr.erase(std::unique(arr.begin(), arr.end(),
+                              [](const Value &a, const Value &b)
+                              { return a == b; }),
+                  arr.end());
+        return Value(std::move(arr));
+    }
+
+    // Reverse an array or a string.
+    inline Value builtin_reverse(const Value &value)
+    {
+        if (value.is_string())
+        {
+            std::string s = value.as_string();
+            std::reverse(s.begin(), s.end());
+            return Value(s);
+        }
+        Array arr = value.as_array();
+        std::reverse(arr.begin(), arr.end());
+        return Value(std::move(arr));
+    }
+
+    // Smallest element of an array (jq ordering). Empty array yields null.
+    inline Value builtin_min(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        if (arr.empty())
+            return Value(nullptr);
+        const Value *m = &arr[0];
+        for (const Value &v : arr)
+            if (value_less(v, *m))
+                m = &v;
+        return *m;
+    }
+
+    // Largest element of an array (jq ordering). Empty array yields null.
+    inline Value builtin_max(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        if (arr.empty())
+            return Value(nullptr);
+        const Value *m = &arr[0];
+        for (const Value &v : arr)
+            if (value_less(*m, v))
+                m = &v;
+        return *m;
+    }
+
+    // First element of an array. Empty array yields null.
+    inline Value builtin_first(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        if (arr.empty())
+            return Value(nullptr);
+        return arr.front();
+    }
+
+    // Last element of an array. Empty array yields null.
+    inline Value builtin_last(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        if (arr.empty())
+            return Value(nullptr);
+        return arr.back();
+    }
+
     // Test whether an object has a given key. The argument must be a literal
     // string in the form has("key"). Arrays and non-objects return false.
     inline Value builtin_has(const Value &value, const std::string &key)
@@ -580,78 +800,262 @@ namespace jpick
         return Value(false);
     }
 
-    // Parse the argument of has("key") from the segment string. Expects the
-    // segment to be exactly `has("key")` where key is a double-quoted string.
-    inline std::string parse_has_arg(const std::string &segment)
+    // Parse the quoted string argument of a call like name("arg"), e.g.
+    // has("key") or join(", "). Returns the unquoted argument.
+    inline std::string parse_string_arg(const std::string &segment, const std::string &name)
     {
-        // Pattern: has("key")
-        if (segment.size() < 7 || segment.substr(0, 4) != "has(" || segment.back() != ')')
-            throw std::runtime_error("has() expects a string argument: has(\"key\")");
-        const std::string inner = segment.substr(4, segment.size() - 5); // strip has( and )
+        const std::string prefix = name + "(";
+        const std::string usage = name + "() expects a string argument: " + name + "(\"...\")";
+        if (segment.compare(0, prefix.size(), prefix) != 0 || segment.back() != ')')
+            throw std::runtime_error(usage);
+        const std::string inner = segment.substr(prefix.size(), segment.size() - prefix.size() - 1);
         if (inner.size() < 2 || inner.front() != '"' || inner.back() != '"')
-            throw std::runtime_error("has() expects a string argument: has(\"key\")");
+            throw std::runtime_error(usage);
         return inner.substr(1, inner.size() - 2); // strip quotes
     }
 
-    // Evaluate a full pipe expression: each segment is applied to every value
-    // produced by the previous one, flattening the results into one stream.
-    // A segment starting with '"' is a string literal evaluated by interpolate;
-    // a segment starting with '@' is a format like @csv; a plain word like
-    // 'length' may be a builtin function; everything else is a navigation path.
+    // Join an array into a string, separating elements with `sep`. Strings are
+    // used as-is, null becomes empty, numbers and bools are stringified; arrays
+    // and objects are rejected (like jq).
+    inline Value builtin_join(const Value &value, const std::string &sep)
+    {
+        const Array &arr = value.as_array();
+        std::string out;
+        for (std::size_t i = 0; i < arr.size(); ++i)
+        {
+            if (i > 0)
+                out += sep;
+            const Value &v = arr[i];
+            if (v.is_string())
+                out += v.as_string();
+            else if (v.is_null())
+                continue; // null contributes nothing
+            else if (v.is_number() || v.is_bool())
+                out += serialize(v);
+            else
+                throw std::runtime_error("join: array elements must be scalars");
+        }
+        return Value(out);
+    }
+
+    // Split a string into an array of substrings on each occurrence of `sep`.
+    inline Value builtin_split(const Value &value, const std::string &sep)
+    {
+        const std::string &s = value.as_string();
+        if (sep.empty())
+            throw std::runtime_error("split: separator cannot be empty");
+        Array out;
+        std::size_t prev = 0;
+        std::size_t pos;
+        while ((pos = s.find(sep, prev)) != std::string::npos)
+        {
+            out.push_back(Value(s.substr(prev, pos - prev)));
+            prev = pos + sep.size();
+        }
+        out.push_back(Value(s.substr(prev)));
+        return Value(std::move(out));
+    }
+
+    // Table of unary builtins with signature Value(const Value&). A pipe
+    // segment matching one of these names is applied to every value in the
+    // stream. Builtins that don't fit this shape (empty, has, join, split)
+    // stay special-cased in query_pipe.
+    inline const std::map<std::string, Value (*)(const Value &)> &unary_builtins()
+    {
+        static const std::map<std::string, Value (*)(const Value &)> table = {
+            {"length", builtin_length},
+            {"keys", builtin_keys},
+            {"type", builtin_type},
+            {"not", builtin_not},
+            {"add", builtin_add},
+            {"sort", builtin_sort},
+            {"unique", builtin_unique},
+            {"reverse", builtin_reverse},
+            {"min", builtin_min},
+            {"max", builtin_max},
+            {"first", builtin_first},
+            {"last", builtin_last},
+        };
+        return table;
+    }
+    // Split a segment on the top-level alternative operator '//'. Quote-aware
+    // and paren-aware, so a '//' inside a string literal or inside parentheses
+    // (e.g. select(.a // 0)) does not split. A segment without a top-level
+    // '//' yields a single element.
+    inline std::vector<std::string> split_alternative(const std::string &segment)
+    {
+        std::vector<std::string> parts;
+        std::string current;
+        bool in_string = false;
+        int depth = 0;
+        for (std::size_t i = 0; i < segment.size(); ++i)
+        {
+            const char c = segment[i];
+            if (c == '"')
+            {
+                in_string = !in_string;
+                current += c;
+            }
+            else if (c == '\\' && in_string && i + 1 < segment.size())
+            {
+                current += c;
+                current += segment[i + 1];
+                ++i;
+            }
+            else if (!in_string && (c == '(' || c == ')'))
+            {
+                depth += (c == '(') ? 1 : -1;
+                current += c;
+            }
+            else if (c == '/' && !in_string && depth == 0 && i + 1 < segment.size() && segment[i + 1] == '/')
+            {
+                parts.push_back(trim(current));
+                current.clear();
+                ++i; // skip the second '/'
+            }
+            else
+            {
+                current += c;
+            }
+        }
+        parts.push_back(trim(current));
+        return parts;
+    }
+
+    // Recognize a JSON scalar literal segment (true, false, null, or a number)
+    // so it can be used as a value, e.g. the fallback in `.a // 0`. Returns
+    // true and sets `out` on success; leaves paths and words untouched.
+    inline bool try_scalar_literal(const std::string &segment, Value &out)
+    {
+        if (segment == "true")
+        {
+            out = Value(true);
+            return true;
+        }
+        if (segment == "false")
+        {
+            out = Value(false);
+            return true;
+        }
+        if (segment == "null")
+        {
+            out = Value(nullptr);
+            return true;
+        }
+        if (!segment.empty() &&
+            (std::isdigit(static_cast<unsigned char>(segment.front())) || segment.front() == '-'))
+        {
+            double number = 0;
+            const char *first = segment.data();
+            const char *last = first + segment.size();
+            auto [ptr, ec] = std::from_chars(first, last, number);
+            if (ec == std::errc() && ptr == last)
+            {
+                out = Value(number);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // True for values jq treats as "present" in select and the alternative
+    // operator: everything except null and false.
+    inline bool is_truthy(const Value &value)
+    {
+        return !(value.is_null() || (value.is_bool() && !value.as_bool()));
+    }
+
+    // Extract the raw argument expression of a call like select(.active),
+    // i.e. everything between the outermost parentheses.
+    inline std::string parse_call_arg(const std::string &segment, const std::string &name)
+    {
+        const std::string prefix = name + "(";
+        if (segment.compare(0, prefix.size(), prefix) != 0 || segment.back() != ')')
+            throw std::runtime_error(name + "() is missing its argument: " + name + "(...)");
+        return segment.substr(prefix.size(), segment.size() - prefix.size() - 1);
+    }
+
+    // Evaluate a single simple segment (no top-level '|' or '//') against one
+    // value. A segment starting with '"' is a string literal evaluated by
+    // interpolate; '@' is a format like @csv; true/false/null/a number is a
+    // scalar literal; select(expr) keeps the value when expr is truthy; a plain
+    // word may be a builtin; a name("arg") is a builtin with an argument;
+    // everything else is a navigation path.
+    inline std::vector<Value> eval_simple(const Value &value, const std::string &segment)
+    {
+        if (!segment.empty() && segment.front() == '"')
+            return {Value(interpolate(segment, value))};
+        if (!segment.empty() && segment.front() == '@')
+            return {apply_format(segment, value)};
+        if (Value literal; try_scalar_literal(segment, literal))
+            return {literal};
+        if (auto it = unary_builtins().find(segment); it != unary_builtins().end())
+            return {it->second(value)};
+        if (segment == "empty")
+            return {};
+        if (segment.rfind("select(", 0) == 0)
+        {
+            const std::vector<Value> results = query_pipe(value, parse_call_arg(segment, "select"));
+            for (const Value &result : results)
+                if (is_truthy(result))
+                    return {value}; // at least one truthy result: keep the value
+            return {};              // otherwise drop it
+        }
+        if (segment.rfind("has(", 0) == 0)
+            return {builtin_has(value, parse_string_arg(segment, "has"))};
+        if (segment.rfind("join(", 0) == 0)
+            return {builtin_join(value, parse_string_arg(segment, "join"))};
+        if (segment.rfind("split(", 0) == 0)
+            return {builtin_split(value, parse_string_arg(segment, "split"))};
+        return query_path(value, split_path(segment));
+    }
+
+    // Evaluate a full pipe expression: each '|'-separated segment is applied to
+    // every value produced by the previous one, flattening the results into one
+    // stream. Within a segment, the alternative operator '//' picks the first
+    // alternative that yields a value other than null or false, otherwise it
+    // falls back to the last alternative (errors in earlier alternatives are
+    // ignored, like jq).
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
     {
         std::vector<Value> stream = {root};
         for (const std::string &segment : split_pipe(expr))
         {
+            const std::vector<std::string> alternatives = split_alternative(segment);
             std::vector<Value> next;
-            if (!segment.empty() && segment.front() == '"')
+            for (const Value &value : stream)
             {
-                for (const Value &value : stream)
-                    next.push_back(Value(interpolate(segment, value)));
-            }
-            else if (!segment.empty() && segment.front() == '@')
-            {
-                for (const Value &value : stream)
-                    next.push_back(apply_format(segment, value));
-            }
-            else if (segment == "length")
-            {
-                for (const Value &value : stream)
-                    next.push_back(builtin_length(value));
-            }
-            else if (segment == "keys")
-            {
-                for (const Value &value : stream)
-                    next.push_back(builtin_keys(value));
-            }
-            else if (segment == "type")
-            {
-                for (const Value &value : stream)
-                    next.push_back(builtin_type(value));
-            }
-            else if (segment == "not")
-            {
-                for (const Value &value : stream)
-                    next.push_back(builtin_not(value));
-            }
-            else if (segment == "empty")
-            {
-                // empty produces no output (so the stream becomes empty).
-                // Do not add anything to `next`.
-            }
-            else if (segment.size() > 4 && segment.substr(0, 4) == "has(")
-            {
-                const std::string key = parse_has_arg(segment);
-                for (const Value &value : stream)
-                    next.push_back(builtin_has(value, key));
-            }
-            else
-            {
-                const std::vector<PathStep> steps = split_path(segment);
-                for (const Value &value : stream)
+                if (alternatives.size() == 1)
                 {
-                    std::vector<Value> results = query_path(value, steps);
+                    std::vector<Value> results = eval_simple(value, segment);
                     next.insert(next.end(), results.begin(), results.end());
+                    continue;
+                }
+                for (std::size_t i = 0; i < alternatives.size(); ++i)
+                {
+                    const bool last = (i + 1 == alternatives.size());
+                    std::vector<Value> results;
+                    try
+                    {
+                        results = eval_simple(value, alternatives[i]);
+                    }
+                    catch (const std::exception &)
+                    {
+                        if (last)
+                            throw; // an error in the final fallback still surfaces
+                        continue;  // skip a failing earlier alternative
+                    }
+                    std::vector<Value> present;
+                    for (const Value &v : results)
+                        if (is_truthy(v))
+                            present.push_back(v);
+                    if (!present.empty())
+                    {
+                        next.insert(next.end(), present.begin(), present.end());
+                        break;
+                    }
+                    if (last) // nothing present anywhere: yield the fallback as-is
+                        next.insert(next.end(), results.begin(), results.end());
                 }
             }
             stream = std::move(next);
