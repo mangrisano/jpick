@@ -1046,6 +1046,21 @@ namespace jpick
         return value;
     }
 
+    // True if the string starts with `prefix`. The input must be a string.
+    inline Value builtin_startswith(const Value &value, const std::string &prefix)
+    {
+        const std::string &s = value.as_string();
+        return Value(s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0);
+    }
+
+    // True if the string ends with `suffix`. The input must be a string.
+    inline Value builtin_endswith(const Value &value, const std::string &suffix)
+    {
+        const std::string &s = value.as_string();
+        return Value(s.size() >= suffix.size() &&
+                     s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0);
+    }
+
     // Table of unary builtins with signature Value(const Value&). A pipe
     // segment matching one of these names is applied to every value in the
     // stream. Builtins that don't fit this shape (empty, has, join, split,
@@ -1217,6 +1232,10 @@ namespace jpick
             return {builtin_ltrimstr(value, parse_string_arg(segment, "ltrimstr"))};
         if (segment.rfind("rtrimstr(", 0) == 0)
             return {builtin_rtrimstr(value, parse_string_arg(segment, "rtrimstr"))};
+        if (segment.rfind("startswith(", 0) == 0)
+            return {builtin_startswith(value, parse_string_arg(segment, "startswith"))};
+        if (segment.rfind("endswith(", 0) == 0)
+            return {builtin_endswith(value, parse_string_arg(segment, "endswith"))};
         return query_path(value, split_path(segment));
     }
 

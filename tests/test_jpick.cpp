@@ -841,6 +841,19 @@ TEST_CASE("builtin_ltrimstr and builtin_rtrimstr")
     CHECK(builtin_ltrimstr(parse_json("42"), "x").as_number() == doctest::Approx(42.0));
 }
 
+TEST_CASE("builtin_startswith and builtin_endswith")
+{
+    CHECK(builtin_startswith(parse_json("\"foobar\""), "foo").as_bool() == true);
+    CHECK(builtin_startswith(parse_json("\"foobar\""), "bar").as_bool() == false);
+    CHECK(builtin_endswith(parse_json("\"foobar\""), "bar").as_bool() == true);
+    CHECK(builtin_endswith(parse_json("\"foobar\""), "foo").as_bool() == false);
+
+    // Through the pipe, combined with map + select.
+    CHECK(query_pipe(parse_json("[\"a.txt\",\"b.csv\",\"c.txt\"]"),
+                     "map(select(endswith(\".txt\")))")[0] ==
+          parse_json("[\"a.txt\", \"c.txt\"]"));
+}
+
 TEST_CASE("query_pipe dispatches the scalar builtins")
 {
     CHECK(query_pipe(parse_json("\"42\""), "tonumber")[0].as_number() == doctest::Approx(42.0));
