@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Streaming input: when the input holds several JSON values (NDJSON or
+  whitespace-separated), each is processed in turn — one output per input
+  value, like `jq`.
+- `-s`/`--slurp` flag: read all input values into a single array, so they can
+  be aggregated (e.g. `jpick -s 'add'`), like `jq -s`.
+
+### Changed
+
+- Multiple top-level JSON values are now processed as a stream instead of
+  raising an "Unexpected trailing content" error at the CLI.
+
 ## [2.1.0] - 2026-07-31
 
 ### Added

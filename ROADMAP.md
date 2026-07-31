@@ -19,13 +19,12 @@ This document tracks what has shipped and what is being considered next.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
   `@json`, `@base64`, `@base64d`, `@uri`, `@sh`).
 - Output control: compact / pretty / raw, custom indent, sorted keys.
+- **Streaming input** (NDJSON) and `--slurp` to collect inputs into one array.
 - Reads from **stdin** or a **file**; clear errors and non-zero exit codes.
 - CI (Linux + macOS), test suite (doctest), Homebrew tap and release binaries.
 
 ## Considering next
 
-- **Multiple / newline-delimited JSON** input (`--slurp`, NDJSON), for logs and
-  streaming pipelines.
 - Additional `@` formats (`@html`, `@base32`).
 - More scalar builtins where they stay simple (`ascii_downcase`, `ltrimstr`,
   `tonumber`, `tostring`).

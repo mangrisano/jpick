@@ -28,6 +28,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
 - **Sort object keys** with `-S`/`--sort-keys`
 - **Raw** string output (`-r`/`--raw-output`), like `jq -r`
+- Process a **stream of JSON values** (NDJSON), or combine them with `-s`/`--slurp`
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
 
@@ -95,6 +96,7 @@ Options:
   -p,--pretty   Pretty-print the output
   -r,--raw-output  Output strings without quotes or escaping
   -S,--sort-keys   Sort object keys in the output
+  -s,--slurp       Read all inputs into a single array
   --indent INT     Indent with N spaces (implies --pretty)
   --tab            Indent with tabs (implies --pretty)
 ```
@@ -282,6 +284,33 @@ echo '{"items":[{"n":"a","c":1},{"n":"b","c":2}]}' | jpick -r '.items[] | "\(.n)
 ```text
 a=1
 b=2
+```
+
+### Process multiple JSON values (NDJSON)
+
+When the input holds several JSON values (newline-delimited or just
+whitespace-separated), `jpick` processes each of them in turn — one output per
+input value, like `jq`:
+
+```bash
+printf '{"a":1}\n{"a":2}\n{"a":3}\n' | jpick '.a'
+```
+
+```text
+1
+2
+3
+```
+
+`-s`/`--slurp` instead reads **all** input values into a single array, so you
+can aggregate across them:
+
+```bash
+printf '1\n2\n3\n4\n' | jpick -s 'add'
+```
+
+```text
+10
 ```
 
 ### Sort object keys
