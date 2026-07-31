@@ -779,6 +779,50 @@ TEST_CASE("query_pipe dispatches the new builtins")
 }
 
 // -----------------------------------------------------------------------------
+// Scalar/string builtins: tonumber, tostring, ascii_downcase/upcase,
+// ltrimstr, rtrimstr
+// -----------------------------------------------------------------------------
+TEST_CASE("builtin_tonumber and builtin_tostring convert values")
+{
+    CHECK(builtin_tonumber(parse_json("\"42\"")).as_number() == doctest::Approx(42.0));
+    CHECK(builtin_tonumber(parse_json("-3.5")).as_number() == doctest::Approx(-3.5));
+    CHECK_THROWS_AS(builtin_tonumber(parse_json("\"abc\"")), std::exception);
+    CHECK_THROWS_AS(builtin_tonumber(parse_json("[1]")), std::exception);
+
+    CHECK(builtin_tostring(parse_json("\"x\"")).as_string() == "x");
+    CHECK(builtin_tostring(parse_json("42")).as_string() == "42");
+    CHECK(builtin_tostring(parse_json("null")).as_string() == "null");
+    CHECK(builtin_tostring(parse_json("true")).as_string() == "true");
+}
+
+TEST_CASE("builtin_ascii_downcase and builtin_ascii_upcase")
+{
+    CHECK(builtin_ascii_downcase(parse_json("\"HeLLo 1!\"")).as_string() == "hello 1!");
+    CHECK(builtin_ascii_upcase(parse_json("\"HeLLo 1!\"")).as_string() == "HELLO 1!");
+}
+
+TEST_CASE("builtin_ltrimstr and builtin_rtrimstr")
+{
+    CHECK(builtin_ltrimstr(parse_json("\"foobar\""), "foo").as_string() == "bar");
+    CHECK(builtin_rtrimstr(parse_json("\"foobar\""), "bar").as_string() == "foo");
+
+    // No match: the value is returned unchanged.
+    CHECK(builtin_ltrimstr(parse_json("\"hello\""), "xyz").as_string() == "hello");
+
+    // A non-string value passes through unchanged.
+    CHECK(builtin_ltrimstr(parse_json("42"), "x").as_number() == doctest::Approx(42.0));
+}
+
+TEST_CASE("query_pipe dispatches the scalar builtins")
+{
+    CHECK(query_pipe(parse_json("\"42\""), "tonumber")[0].as_number() == doctest::Approx(42.0));
+    CHECK(query_pipe(parse_json("7"), "tostring")[0].as_string() == "7");
+    CHECK(query_pipe(parse_json("\"AbC\""), "ascii_downcase")[0].as_string() == "abc");
+    CHECK(query_pipe(parse_json("\"v1.2.0\""), "ltrimstr(\"v\")")[0].as_string() == "1.2.0");
+    CHECK(query_pipe(parse_json("\"file.txt\""), "rtrimstr(\".txt\")")[0].as_string() == "file");
+}
+
+// -----------------------------------------------------------------------------
 // Alternative operator // and scalar literals
 // -----------------------------------------------------------------------------
 TEST_CASE("split_alternative splits on top-level // only")

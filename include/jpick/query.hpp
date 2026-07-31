@@ -787,6 +787,55 @@ namespace jpick
         return arr.back();
     }
 
+    // Parse a value as a number: a number is returned unchanged, a string is
+    // parsed (the whole string must be a valid number). Other types throw.
+    inline Value builtin_tonumber(const Value &value)
+    {
+        if (value.is_number())
+            return value;
+        if (value.is_string())
+        {
+            const std::string &s = value.as_string();
+            double number = 0;
+            const char *first = s.data();
+            const char *last = first + s.size();
+            auto [ptr, ec] = std::from_chars(first, last, number);
+            if (ec == std::errc() && ptr == last)
+                return Value(number);
+            throw std::runtime_error("Cannot parse as a number: " + s);
+        }
+        throw std::runtime_error("tonumber requires a number or a string");
+    }
+
+    // Render a value as a string: strings pass through, everything else is
+    // serialized to its JSON form (numbers, bools, null, arrays, objects).
+    inline Value builtin_tostring(const Value &value)
+    {
+        if (value.is_string())
+            return value;
+        return Value(serialize(value));
+    }
+
+    // Lowercase the ASCII letters A-Z of a string; other bytes are unchanged.
+    inline Value builtin_ascii_downcase(const Value &value)
+    {
+        std::string s = value.as_string();
+        for (char &c : s)
+            if (c >= 'A' && c <= 'Z')
+                c = static_cast<char>(c + 32);
+        return Value(s);
+    }
+
+    // Uppercase the ASCII letters a-z of a string; other bytes are unchanged.
+    inline Value builtin_ascii_upcase(const Value &value)
+    {
+        std::string s = value.as_string();
+        for (char &c : s)
+            if (c >= 'a' && c <= 'z')
+                c = static_cast<char>(c - 32);
+        return Value(s);
+    }
+
     // Test whether an object has a given key. The argument must be a literal
     // string in the form has("key"). Arrays and non-objects return false.
     inline Value builtin_has(const Value &value, const std::string &key)
@@ -856,10 +905,35 @@ namespace jpick
         return Value(std::move(out));
     }
 
+    // Remove `prefix` from the start of a string if present; a value without
+    // the prefix (or a non-string) is returned unchanged (like jq).
+    inline Value builtin_ltrimstr(const Value &value, const std::string &prefix)
+    {
+        if (!value.is_string())
+            return value;
+        const std::string &s = value.as_string();
+        if (s.size() >= prefix.size() && s.compare(0, prefix.size(), prefix) == 0)
+            return Value(s.substr(prefix.size()));
+        return value;
+    }
+
+    // Remove `suffix` from the end of a string if present; a value without the
+    // suffix (or a non-string) is returned unchanged (like jq).
+    inline Value builtin_rtrimstr(const Value &value, const std::string &suffix)
+    {
+        if (!value.is_string())
+            return value;
+        const std::string &s = value.as_string();
+        if (s.size() >= suffix.size() &&
+            s.compare(s.size() - suffix.size(), suffix.size(), suffix) == 0)
+            return Value(s.substr(0, s.size() - suffix.size()));
+        return value;
+    }
+
     // Table of unary builtins with signature Value(const Value&). A pipe
     // segment matching one of these names is applied to every value in the
-    // stream. Builtins that don't fit this shape (empty, has, join, split)
-    // stay special-cased in query_pipe.
+    // stream. Builtins that don't fit this shape (empty, has, join, split,
+    // ltrimstr, rtrimstr) stay special-cased in query_pipe.
     inline const std::map<std::string, Value (*)(const Value &)> &unary_builtins()
     {
         static const std::map<std::string, Value (*)(const Value &)> table = {
@@ -875,6 +949,10 @@ namespace jpick
             {"max", builtin_max},
             {"first", builtin_first},
             {"last", builtin_last},
+            {"tonumber", builtin_tonumber},
+            {"tostring", builtin_tostring},
+            {"ascii_downcase", builtin_ascii_downcase},
+            {"ascii_upcase", builtin_ascii_upcase},
         };
         return table;
     }
@@ -1007,6 +1085,10 @@ namespace jpick
             return {builtin_join(value, parse_string_arg(segment, "join"))};
         if (segment.rfind("split(", 0) == 0)
             return {builtin_split(value, parse_string_arg(segment, "split"))};
+        if (segment.rfind("ltrimstr(", 0) == 0)
+            return {builtin_ltrimstr(value, parse_string_arg(segment, "ltrimstr"))};
+        if (segment.rfind("rtrimstr(", 0) == 0)
+            return {builtin_rtrimstr(value, parse_string_arg(segment, "rtrimstr"))};
         return query_path(value, split_path(segment));
     }
 
