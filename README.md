@@ -1,14 +1,16 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo-dark.svg">
-    <img alt="jpick" src="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo.svg" width="240">
-  </picture>
-</p>
+<div align="center">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo-dark.svg">
+  <img alt="jpick" src="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo.svg" width="240">
+</picture>
 
 [![CI](https://github.com/mangrisano/jpick/actions/workflows/ci.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/ci.yml)
 [![Performance](https://github.com/mangrisano/jpick/actions/workflows/performance.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/performance.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
+
+</div>
 
 A tiny [`jq`](https://stedolan.github.io/jq/)-like JSON tool written in C++20.
 
