@@ -432,6 +432,31 @@ TEST_CASE("parser rejects trailing content after a value")
 }
 
 // -----------------------------------------------------------------------------
+// parse_all: a stream of top-level values (NDJSON / whitespace-separated).
+// -----------------------------------------------------------------------------
+TEST_CASE("parse_all reads every top-level value")
+{
+    // Newline-delimited JSON. Keep the token vectors alive: Parser holds a
+    // reference to them.
+    std::vector<Token> ndjson_tokens = tokenize("{\"a\":1}\n{\"a\":2}\n{\"a\":3}");
+    Parser ndjson(ndjson_tokens);
+    std::vector<Value> values = ndjson.parse_all();
+    REQUIRE(values.size() == 3);
+    CHECK(values[0] == parse_json("{\"a\":1}"));
+    CHECK(values[2] == parse_json("{\"a\":3}"));
+
+    // Whitespace-separated scalars.
+    std::vector<Token> scalar_tokens = tokenize("1 2 3");
+    Parser scalars(scalar_tokens);
+    CHECK(scalars.parse_all().size() == 3);
+
+    // Empty input yields no values.
+    std::vector<Token> empty_tokens = tokenize("");
+    Parser empty(empty_tokens);
+    CHECK(empty.parse_all().empty());
+}
+
+// -----------------------------------------------------------------------------
 // Pipe: compose stages with `|`, applying each to every value of the stream.
 // -----------------------------------------------------------------------------
 TEST_CASE("split_pipe splits and trims segments")

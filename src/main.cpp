@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
     bool raw = false;
     bool tab = false;
     bool sort_keys = false;
+    bool slurp = false;
     int indent_spaces = -1;
 
     app.add_option("path", path, "Query path, e.g. '.a.b[0]'");
@@ -27,6 +28,7 @@ int main(int argc, char *argv[])
     app.add_flag("-p,--pretty", pretty, "Pretty-print the output");
     app.add_flag("-r,--raw-output", raw, "Output strings without quotes or escaping");
     app.add_flag("-S,--sort-keys", sort_keys, "Sort object keys in the output");
+    app.add_flag("-s,--slurp", slurp, "Read all inputs into a single array");
     auto *indent_opt = app.add_option("--indent", indent_spaces,
                                       "Indent with N spaces (implies --pretty)")
                            ->check(CLI::NonNegativeNumber);
@@ -72,16 +74,25 @@ int main(int argc, char *argv[])
     {
         std::vector<Token> tokens = tokenize(input);
         Parser parser(tokens);
-        Value value = parser.parse();
+        std::vector<Value> inputs = parser.parse_all();
 
-        std::vector<Value> results = query_pipe(value, path);
-
-        for (const Value &result : results)
+        // --slurp collects every input value into a single array.
+        if (slurp)
         {
-            if (raw && result.is_string())
-                std::cout << result.as_string() << '\n';
-            else
-                std::cout << serialize(result, serialize_opts) << '\n';
+            Array all = std::move(inputs);
+            inputs = {Value(std::move(all))};
+        }
+
+        for (const Value &input_value : inputs)
+        {
+            std::vector<Value> results = query_pipe(input_value, path);
+            for (const Value &result : results)
+            {
+                if (raw && result.is_string())
+                    std::cout << result.as_string() << '\n';
+                else
+                    std::cout << serialize(result, serialize_opts) << '\n';
+            }
         }
     }
     catch (const std::exception &e)

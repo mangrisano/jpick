@@ -40,6 +40,16 @@ namespace jpick
             return result;
         }
 
+        // Parse every top-level value in the token stream (a stream of JSON
+        // values, e.g. NDJSON or whitespace-separated), stopping at EndOfInput.
+        std::vector<Value> parse_all()
+        {
+            std::vector<Value> values;
+            while (peek().type != TokenType::EndOfInput)
+                values.push_back(parse_value());
+            return values;
+        }
+
         Value parse_array()
         {
             expect(TokenType::LBracket);
