@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-07-31
+
+### Added
+
+- Filter builtin **`select(expr)`**: keeps the current value when `expr` is
+  truthy (anything other than `null` or `false`) and drops it otherwise, e.g.
+  `.users[] | select(.active)` (like `jq`). Comparisons such as `.age > 18` are
+  intentionally out of scope.
+- Alternative operator **`//`**: yields its left-hand side unless that is
+  `null`, `false`, or missing (or raises an error), otherwise falls back to the
+  right-hand side. Alternatives can be chained, e.g. `.a // .b // 0` (like `jq`).
+- Scalar literals `true`, `false`, `null`, and numbers can be used as an
+  expression, e.g. as the fallback in `.x // 0` (like `jq`).
+- Aggregate builtins **`add`** (sum numbers, concatenate strings/arrays, merge
+  objects), **`min`**, **`max`**, **`first`**, **`last`** (like `jq`).
+- Array builtins **`sort`**, **`unique`** (sort + dedupe) and **`reverse`**
+  (also reverses strings), using jq's total value ordering (like `jq`).
+- String/array builtins **`join("sep")`** and **`split("sep")`** (like `jq`).
+
+### Changed
+
+- Indexing a `null` value now returns `null` instead of erroring, so paths can
+  descend past a missing branch (e.g. `.a.b` when `.a` is absent), matching `jq`.
+- Refactored builtin dispatch to a lookup table, so adding a unary builtin is
+  a one-line change (no behavior change).
+- The pipe (`|`) and alternative (`//`) operators are now parenthesis-aware, so
+  they are not split when they appear inside `select(...)`.
+
 ## [2.0.0] - 2026-07-31
 
 ### Added
@@ -108,7 +136,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.0.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.1.0...HEAD
+[2.1.0]: https://github.com/mangrisano/jpick/releases/tag/v2.1.0
 [2.0.0]: https://github.com/mangrisano/jpick/releases/tag/v2.0.0
 [1.5.0]: https://github.com/mangrisano/jpick/releases/tag/v1.5.0
 [1.4.0]: https://github.com/mangrisano/jpick/releases/tag/v1.4.0
