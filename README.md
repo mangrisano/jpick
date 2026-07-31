@@ -10,9 +10,9 @@ A tiny [`jq`](https://stedolan.github.io/jq/)-like JSON tool written in C++20.
 with a simple path expression, and prints the result back as valid JSON
 (compact or pretty-printed).
 
-It was built as a learning project: a hand-written lexer, a recursive-descent
-parser, a `std::variant`-based data model, a path query engine, and a
-serializer.
+It is a small, dependency-free binary built from scratch: a hand-written lexer,
+a recursive-descent parser, a `std::variant`-based data model, a path query
+engine, and a serializer — the querying essentials of `jq`, without the runtime.
 
 ## Features
 

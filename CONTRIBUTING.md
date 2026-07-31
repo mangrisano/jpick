@@ -1,7 +1,7 @@
 # Contributing to jpick
 
-Thanks for your interest in improving jpick! This is a small learning project,
-but contributions are welcome.
+Thanks for your interest in improving jpick! It is a small, focused tool, and
+contributions are welcome.
 
 ## Getting started
 
