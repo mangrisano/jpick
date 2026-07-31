@@ -17,7 +17,7 @@ This document tracks what has shipped and what is being considered next.
 - Builtins: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`,
   `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`,
   `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`,
-  `ltrimstr`, `rtrimstr`.
+  `ltrimstr`, `rtrimstr`, `startswith`, `endswith`.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
   `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`,
   `@sh`).
@@ -28,9 +28,8 @@ This document tracks what has shipped and what is being considered next.
 
 ## Considering next
 
-- String predicates `startswith("s")` / `endswith("s")` (pair well with
-  `select`).
 - `flatten` to collapse nested arrays one or more levels deep.
+- Numeric builtins (`floor`, `ceil`, `round`, `abs`).
 
 ## Non-goals
 

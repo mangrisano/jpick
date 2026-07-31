@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- String predicates **`startswith("s")`** and **`endswith("s")`**, which pair
+  well with `select` (e.g. `map(select(endswith(".txt")))`), like `jq`.
 - **`map(expr)`**: apply an expression to every element of an array and collect
   the results into a new array (e.g. `map(.price) | add`), like `jq`. It
   composes with paths, `select`, pipes and builtins.

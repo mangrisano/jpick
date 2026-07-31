@@ -24,7 +24,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
 - **Transform** each element with `map(...)`: `map(.price) | add`
 - Decode embedded JSON with **`fromjson`** (and encode with `@json`)
-- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr` (jq-compatible)
+- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -676,6 +676,19 @@ echo '"report.csv"' | jpick -r 'rtrimstr(".csv")'
 report
 ```
 
+### Builtins: `startswith`, `endswith`
+
+Test whether a string begins or ends with a substring. They pair naturally with
+`select` and `map` to filter by name:
+
+```bash
+echo '["a.txt","b.csv","c.txt"]' | jpick 'map(select(endswith(".txt")))'
+```
+
+```text
+["a.txt", "c.txt"]
+```
+
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
@@ -773,6 +786,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
 - `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last` — aggregate builtins
 - `join("sep")`, `split("sep")`, `ltrimstr("s")`, `rtrimstr("s")` — string builtins
+- `startswith("s")`, `endswith("s")` — string predicates (pair with `select`)
 - `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase` — conversion/case builtins
 - `fromjson` — parse a JSON string into a value (inverse of `@json`)
 - `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
