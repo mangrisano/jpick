@@ -1,0 +1,42 @@
+name: Performance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  benchmark:
+    name: Benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Release)
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build
+
+      - name: Run benchmark
+        run: bash benchmarks/bench.sh
+
+      - name: Track benchmark result
+        if: github.event_name == 'push'
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          name: jpick benchmarks
+          tool: customSmallerIsBetter
+          output-file-path: output.json
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          auto-push: true
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          alert-threshold: '200%'
+          comment-on-alert: true
+          fail-on-alert: false

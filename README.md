@@ -1,6 +1,7 @@
 # jpick
 
 [![CI](https://github.com/mangrisano/jpick/actions/workflows/ci.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/ci.yml)
+[![Performance](https://github.com/mangrisano/jpick/actions/workflows/performance.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/performance.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
