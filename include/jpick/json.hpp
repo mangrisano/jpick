@@ -31,6 +31,10 @@ namespace jpick
         Value(const std::string &s) : data(s) {}
         Value(const char *s) : data(std::string(s)) {}
         Value(std::nullptr_t) : data(nullptr) {}
+        Value(const Array &a) : data(a) {}
+        Value(Array &&a) : data(std::move(a)) {}
+        Value(const Object &o) : data(o) {}
+        Value(Object &&o) : data(std::move(o)) {}
 
         // Objects compare equal regardless of key order; everything else uses
         // the variant's structural comparison.
@@ -105,20 +109,24 @@ namespace jpick
             throw std::runtime_error("Value is not an Object");
         }
 
-        const Value &operator[](const std::string &key) const
+        // Access an object field by key. Returns null if the key does not
+        // exist (like jq), making it safe to query optional fields.
+        Value operator[](const std::string &key) const
         {
             const Object &obj = as_object();
             for (const auto &[k, v] : obj)
                 if (k == key)
                     return v;
-            throw std::runtime_error("Field does not exist");
+            return Value(nullptr);
         }
 
-        const Value &operator[](std::size_t index) const
+        // Access an array element by index. Returns null if the index is out
+        // of range (like jq), making it safe to query variable-length arrays.
+        Value operator[](std::size_t index) const
         {
             const Array &arr = as_array();
             if (index >= arr.size())
-                throw std::runtime_error("Index out of range");
+                return Value(nullptr);
             return arr[index];
         }
     };

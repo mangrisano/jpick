@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <vector>
 #include <variant>
+#include <algorithm>
 #include "jpick/json.hpp"
 #include "jpick/serializer.hpp"
 
@@ -20,7 +21,18 @@ namespace jpick
     {
     };
 
-    using PathStep = std::variant<std::string, std::size_t, Iterate>;
+    // Array slice: [start:end] extracts a subarray. Negative indices count
+    // from the end (-1 = last element). Omitted start defaults to 0, omitted
+    // end defaults to array length.
+    struct Slice
+    {
+        int start = 0; // -1 means "from beginning"
+        int end = -1;  // -1 means "to end"
+        bool has_start = false;
+        bool has_end = false;
+    };
+
+    using PathStep = std::variant<std::string, std::size_t, Iterate, Slice>;
 
     inline Value query(const Value &root, const std::string &key)
     {
@@ -36,8 +48,9 @@ namespace jpick
     {
         std::vector<PathStep> steps;
         std::string current;
-        for (char c : path)
+        for (std::size_t i = 0; i < path.size(); ++i)
         {
+            const char c = path[i];
             if (c == '.' || c == '[')
             {
                 if (!current.empty())
@@ -51,6 +64,25 @@ namespace jpick
                 if (current.empty())
                 {
                     steps.emplace_back(std::in_place_type<Iterate>);
+                }
+                else if (current.find(':') != std::string::npos)
+                {
+                    // Slice syntax: [start:end], [:end], [start:], or [:]
+                    const std::size_t colon = current.find(':');
+                    Slice slice;
+                    const std::string start_str = current.substr(0, colon);
+                    const std::string end_str = current.substr(colon + 1);
+                    if (!start_str.empty())
+                    {
+                        slice.start = std::stoi(start_str);
+                        slice.has_start = true;
+                    }
+                    if (!end_str.empty())
+                    {
+                        slice.end = std::stoi(end_str);
+                        slice.has_end = true;
+                    }
+                    steps.emplace_back(std::in_place_type<Slice>, slice);
                 }
                 else
                 {
@@ -132,6 +164,27 @@ namespace jpick
                 else if (const std::size_t *index = std::get_if<std::size_t>(&step))
                 {
                     next.push_back(value[*index]);
+                }
+                else if (const Slice *slice = std::get_if<Slice>(&step))
+                {
+                    const Array &arr = value.as_array();
+                    const int len = static_cast<int>(arr.size());
+                    // Compute actual start and end indices.
+                    int start = slice->has_start ? slice->start : 0;
+                    int end = slice->has_end ? slice->end : len;
+                    // Negative indices count from the end.
+                    if (start < 0)
+                        start += len;
+                    if (end < 0)
+                        end += len;
+                    // Clamp to valid range.
+                    start = std::max(0, std::min(start, len));
+                    end = std::max(0, std::min(end, len));
+                    // Build the slice.
+                    Array sliced;
+                    for (int i = start; i < end; ++i)
+                        sliced.push_back(arr[static_cast<std::size_t>(i)]);
+                    next.push_back(Value(std::move(sliced)));
                 }
                 else // Iterate: expand the array into its elements
                 {
@@ -446,10 +499,105 @@ namespace jpick
         return out;
     }
 
+    // Return the length of a value: for arrays and objects the count of
+    // elements, for strings the count of characters. Other types return null.
+    inline Value builtin_length(const Value &value)
+    {
+        if (value.is_array())
+            return Value(static_cast<double>(value.as_array().size()));
+        if (value.is_object())
+            return Value(static_cast<double>(value.as_object().size()));
+        if (value.is_string())
+            return Value(static_cast<double>(value.as_string().size()));
+        return Value(nullptr);
+    }
+
+    // Return the keys of an object (sorted) or the indices of an array.
+    inline Value builtin_keys(const Value &value)
+    {
+        if (value.is_object())
+        {
+            const Object &obj = value.as_object();
+            std::vector<std::string> keys;
+            keys.reserve(obj.size());
+            for (const auto &[k, v] : obj)
+                keys.push_back(k);
+            std::sort(keys.begin(), keys.end());
+            Array result;
+            result.reserve(keys.size());
+            for (const std::string &k : keys)
+                result.push_back(Value(k));
+            return Value(result);
+        }
+        if (value.is_array())
+        {
+            const Array &arr = value.as_array();
+            Array result;
+            result.reserve(arr.size());
+            for (std::size_t i = 0; i < arr.size(); ++i)
+                result.push_back(Value(static_cast<double>(i)));
+            return Value(result);
+        }
+        throw std::runtime_error("keys only works on objects and arrays");
+    }
+
+    // Return the type of a value as a string.
+    inline Value builtin_type(const Value &value)
+    {
+        if (value.is_null())
+            return Value("null");
+        if (value.is_bool())
+            return Value("boolean");
+        if (value.is_number())
+            return Value("number");
+        if (value.is_string())
+            return Value("string");
+        if (value.is_array())
+            return Value("array");
+        if (value.is_object())
+            return Value("object");
+        throw std::runtime_error("Unknown type");
+    }
+
+    // Negate a boolean value. Other types throw an error.
+    inline Value builtin_not(const Value &value)
+    {
+        if (value.is_bool())
+            return Value(!value.as_bool());
+        throw std::runtime_error("not only works on booleans");
+    }
+
+    // Test whether an object has a given key. The argument must be a literal
+    // string in the form has("key"). Arrays and non-objects return false.
+    inline Value builtin_has(const Value &value, const std::string &key)
+    {
+        if (!value.is_object())
+            return Value(false);
+        const Object &obj = value.as_object();
+        for (const auto &[k, v] : obj)
+            if (k == key)
+                return Value(true);
+        return Value(false);
+    }
+
+    // Parse the argument of has("key") from the segment string. Expects the
+    // segment to be exactly `has("key")` where key is a double-quoted string.
+    inline std::string parse_has_arg(const std::string &segment)
+    {
+        // Pattern: has("key")
+        if (segment.size() < 7 || segment.substr(0, 4) != "has(" || segment.back() != ')')
+            throw std::runtime_error("has() expects a string argument: has(\"key\")");
+        const std::string inner = segment.substr(4, segment.size() - 5); // strip has( and )
+        if (inner.size() < 2 || inner.front() != '"' || inner.back() != '"')
+            throw std::runtime_error("has() expects a string argument: has(\"key\")");
+        return inner.substr(1, inner.size() - 2); // strip quotes
+    }
+
     // Evaluate a full pipe expression: each segment is applied to every value
     // produced by the previous one, flattening the results into one stream.
     // A segment starting with '"' is a string literal evaluated by interpolate;
-    // any other segment is a navigation path.
+    // a segment starting with '@' is a format like @csv; a plain word like
+    // 'length' may be a builtin function; everything else is a navigation path.
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
     {
         std::vector<Value> stream = {root};
@@ -465,6 +613,37 @@ namespace jpick
             {
                 for (const Value &value : stream)
                     next.push_back(apply_format(segment, value));
+            }
+            else if (segment == "length")
+            {
+                for (const Value &value : stream)
+                    next.push_back(builtin_length(value));
+            }
+            else if (segment == "keys")
+            {
+                for (const Value &value : stream)
+                    next.push_back(builtin_keys(value));
+            }
+            else if (segment == "type")
+            {
+                for (const Value &value : stream)
+                    next.push_back(builtin_type(value));
+            }
+            else if (segment == "not")
+            {
+                for (const Value &value : stream)
+                    next.push_back(builtin_not(value));
+            }
+            else if (segment == "empty")
+            {
+                // empty produces no output (so the stream becomes empty).
+                // Do not add anything to `next`.
+            }
+            else if (segment.size() > 4 && segment.substr(0, 4) == "has(")
+            {
+                const std::string key = parse_has_arg(segment);
+                for (const Value &value : stream)
+                    next.push_back(builtin_has(value, key));
             }
             else
             {

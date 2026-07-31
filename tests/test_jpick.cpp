@@ -347,13 +347,15 @@ TEST_CASE("query_path iterates arrays with []")
     CHECK_THROWS_AS(query_path(scalar, split_path(".[]")), std::exception);
 }
 
-TEST_CASE("query_index errors: out of range and non-array")
+TEST_CASE("query_index behavior: null for out-of-range, error for wrong type")
 {
     Value arr = parse_json("[1, 2]");
-    CHECK_THROWS_AS(query_index(arr, 5), std::exception); // out of range
+    // Out of range returns null (jq-compatible).
+    CHECK(query_index(arr, 5).is_null());
 
     Value obj = parse_json("{\"a\": 1}");
-    CHECK_THROWS_AS(query_index(obj, 0), std::exception); // not an array
+    // Wrong type (not an array) still throws.
+    CHECK_THROWS_AS(query_index(obj, 0), std::exception);
 }
 
 // -----------------------------------------------------------------------------
@@ -364,11 +366,11 @@ TEST_CASE("errors: malformed input and missing fields")
     // Parser: missing value after the colon.
     CHECK_THROWS_AS(parse_json("{\"a\":}"), std::exception);
 
-    // query: field that does not exist.
+    // query: field that does not exist returns null (jq-compatible).
     Value v = parse_json("{\"a\": 1}");
-    CHECK_THROWS_AS(query(v, "x"), std::exception);
+    CHECK(query(v, "x").is_null());
 
-    // query: the value is not an object.
+    // query: the value is not an object still throws.
     Value number = parse_json("42");
     CHECK_THROWS_AS(query(number, "a"), std::exception);
 }
@@ -402,8 +404,9 @@ TEST_CASE("Value operator[] navigates objects and arrays")
     Value v = parse_json("{\"a\": {\"b\": [10, 20, 30]}}");
     CHECK(v["a"]["b"][2].as_number() == doctest::Approx(30.0));
 
-    CHECK_THROWS_AS(v["missing"], std::exception);   // field does not exist
-    CHECK_THROWS_AS(v["a"]["b"][5], std::exception); // index out of range
+    // Missing field and out-of-range index return null (jq-compatible).
+    CHECK(v["missing"].is_null());
+    CHECK(v["a"]["b"][5].is_null());
 }
 
 TEST_CASE("Value equality is order-independent for objects")
@@ -523,4 +526,149 @@ TEST_CASE("query_pipe evaluates a string-literal stage")
     REQUIRE(out.size() == 2);
     CHECK(out[0] == Value("a=1"));
     CHECK(out[1] == Value("b=2"));
+}
+
+// -----------------------------------------------------------------------------
+// Builtin functions: length, keys, type
+// -----------------------------------------------------------------------------
+TEST_CASE("builtin_length returns size for arrays, objects and strings")
+{
+    CHECK(builtin_length(parse_json("[1,2,3]")).as_number() == doctest::Approx(3.0));
+    CHECK(builtin_length(parse_json("{\"a\":1,\"b\":2}")).as_number() == doctest::Approx(2.0));
+    CHECK(builtin_length(parse_json("\"hello\"")).as_number() == doctest::Approx(5.0));
+
+    // Other types return null.
+    CHECK(builtin_length(parse_json("null")).is_null());
+    CHECK(builtin_length(parse_json("42")).is_null());
+    CHECK(builtin_length(parse_json("true")).is_null());
+}
+
+TEST_CASE("builtin_keys returns sorted keys for objects, indices for arrays")
+{
+    // Object: keys sorted alphabetically.
+    Value obj_keys = builtin_keys(parse_json("{\"z\":1,\"a\":2,\"m\":3}"));
+    CHECK(obj_keys == parse_json("[\"a\",\"m\",\"z\"]"));
+
+    // Array: numeric indices.
+    Value arr_keys = builtin_keys(parse_json("[10,20,30]"));
+    CHECK(arr_keys == parse_json("[0,1,2]"));
+
+    // Other types throw an error.
+    CHECK_THROWS_AS(builtin_keys(parse_json("\"hello\"")), std::exception);
+    CHECK_THROWS_AS(builtin_keys(parse_json("null")), std::exception);
+}
+
+TEST_CASE("builtin_type returns the JSON type as a string")
+{
+    CHECK(builtin_type(parse_json("null")).as_string() == "null");
+    CHECK(builtin_type(parse_json("true")).as_string() == "boolean");
+    CHECK(builtin_type(parse_json("42")).as_string() == "number");
+    CHECK(builtin_type(parse_json("\"text\"")).as_string() == "string");
+    CHECK(builtin_type(parse_json("[]")).as_string() == "array");
+    CHECK(builtin_type(parse_json("{}")).as_string() == "object");
+}
+
+TEST_CASE("query_pipe recognizes builtin functions")
+{
+    Value v = parse_json("{\"users\":[{\"name\":\"anna\"},{\"name\":\"luca\"}]}");
+
+    // length
+    std::vector<Value> len = query_pipe(v, ".users | length");
+    REQUIRE(len.size() == 1);
+    CHECK(len[0].as_number() == doctest::Approx(2.0));
+
+    // keys
+    std::vector<Value> k = query_pipe(v, "keys");
+    REQUIRE(k.size() == 1);
+    CHECK(k[0] == parse_json("[\"users\"]"));
+
+    // type
+    std::vector<Value> t = query_pipe(v, ".users[0] | type");
+    REQUIRE(t.size() == 1);
+    CHECK(t[0].as_string() == "object");
+}
+
+// -----------------------------------------------------------------------------
+// Builtin functions: not, empty, has
+// -----------------------------------------------------------------------------
+TEST_CASE("builtin_not negates booleans")
+{
+    CHECK(builtin_not(parse_json("true")).as_bool() == false);
+    CHECK(builtin_not(parse_json("false")).as_bool() == true);
+
+    // Non-booleans throw an error.
+    CHECK_THROWS_AS(builtin_not(parse_json("null")), std::exception);
+    CHECK_THROWS_AS(builtin_not(parse_json("42")), std::exception);
+}
+
+TEST_CASE("builtin_has tests object key presence")
+{
+    Value obj = parse_json("{\"a\": 1, \"b\": 2}");
+    CHECK(builtin_has(obj, "a").as_bool() == true);
+    CHECK(builtin_has(obj, "c").as_bool() == false);
+
+    // Non-objects return false.
+    CHECK(builtin_has(parse_json("[1,2,3]"), "a").as_bool() == false);
+    CHECK(builtin_has(parse_json("null"), "a").as_bool() == false);
+}
+
+TEST_CASE("query_pipe handles has, not and empty")
+{
+    Value v = parse_json("{\"a\": 1}");
+
+    // has("key")
+    std::vector<Value> h1 = query_pipe(v, "has(\"a\")");
+    REQUIRE(h1.size() == 1);
+    CHECK(h1[0].as_bool() == true);
+
+    std::vector<Value> h2 = query_pipe(v, "has(\"missing\")");
+    REQUIRE(h2.size() == 1);
+    CHECK(h2[0].as_bool() == false);
+
+    // has combined with not
+    std::vector<Value> hn = query_pipe(v, "has(\"missing\") | not");
+    REQUIRE(hn.size() == 1);
+    CHECK(hn[0].as_bool() == true);
+
+    // empty removes everything from the stream.
+    std::vector<Value> e = query_pipe(parse_json("[1,2,3]"), ".[] | empty");
+    CHECK(e.empty());
+}
+
+// -----------------------------------------------------------------------------
+// Array slicing: .[start:end], with negative and omitted bounds
+// -----------------------------------------------------------------------------
+TEST_CASE("split_path parses slice steps")
+{
+    std::vector<PathStep> steps = split_path(".[1:3]");
+    REQUIRE(steps.size() == 1);
+    const Slice *slice = std::get_if<Slice>(&steps[0]);
+    REQUIRE(slice != nullptr);
+    CHECK(slice->has_start);
+    CHECK(slice->has_end);
+    CHECK(slice->start == 1);
+    CHECK(slice->end == 3);
+}
+
+TEST_CASE("query_path slices arrays")
+{
+    Value arr = parse_json("[0, 1, 2, 3, 4]");
+
+    // [1:3] -> [1, 2]
+    CHECK(query_path(arr, split_path(".[1:3]"))[0] == parse_json("[1, 2]"));
+
+    // [:2] -> [0, 1]
+    CHECK(query_path(arr, split_path(".[:2]"))[0] == parse_json("[0, 1]"));
+
+    // [2:] -> [2, 3, 4]
+    CHECK(query_path(arr, split_path(".[2:]"))[0] == parse_json("[2, 3, 4]"));
+
+    // [-2:] -> [3, 4] (negative index counts from the end)
+    CHECK(query_path(arr, split_path(".[-2:]"))[0] == parse_json("[3, 4]"));
+
+    // [:-1] -> [0, 1, 2, 3]
+    CHECK(query_path(arr, split_path(".[:-1]"))[0] == parse_json("[0, 1, 2, 3]"));
+
+    // Out-of-range bounds are clamped, not an error.
+    CHECK(query_path(arr, split_path(".[10:20]"))[0] == parse_json("[]"));
 }
