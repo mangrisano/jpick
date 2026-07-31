@@ -1,4 +1,9 @@
-# jpick
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo-dark.svg">
+    <img alt="jpick" src="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/logo.svg" width="240">
+  </picture>
+</p>
 
 [![CI](https://github.com/mangrisano/jpick/actions/workflows/ci.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/ci.yml)
 [![Performance](https://github.com/mangrisano/jpick/actions/workflows/performance.yml/badge.svg)](https://github.com/mangrisano/jpick/actions/workflows/performance.yml)
