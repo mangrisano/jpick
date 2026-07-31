@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **`tostring`** (render any value as a string), like `jq`.
 - String builtins **`ascii_downcase`**, **`ascii_upcase`**, **`ltrimstr("s")`**
   (strip a prefix) and **`rtrimstr("s")`** (strip a suffix), like `jq`.
+- Output format filters **`@base32`**/**`@base32d`** (RFC 4648 base32
+  encode/decode) and **`@html`** (HTML entity escaping), like `jq`.
 
 ### Changed
 

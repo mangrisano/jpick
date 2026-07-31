@@ -24,7 +24,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
 - **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
-- Format output with `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`, like `jq`
+- Format output with `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
 - **Sort object keys** with `-S`/`--sort-keys`
 - **Raw** string output (`-r`/`--raw-output`), like `jq -r`
@@ -641,8 +641,9 @@ report
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
-of scalars; `@base64`, `@base64d`, `@uri`, `@sh`, `@json` and `@text` take any
-value (`@sh` also accepts an array). Combine with `-r` for clean output.
+of scalars; `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`,
+`@sh`, `@json` and `@text` take any value (`@sh` also accepts an array).
+Combine with `-r` for clean output.
 
 One example per format (each run as `echo '<input>' | jpick -r '. | @<fmt>'`):
 
@@ -652,7 +653,10 @@ One example per format (each run as `echo '<input>' | jpick -r '. | @<fmt>'`):
 | `@json`    | `{"a":1,"b":[2,3]}`     | `{"a": 1, "b": [2, 3]}`     |
 | `@base64`  | `"hello"`               | `aGVsbG8=`                  |
 | `@base64d` | `"aGVsbG8="`            | `hello`                     |
+| `@base32`  | `"hello"`               | `NBSWY3DP`                  |
+| `@base32d` | `"NBSWY3DP"`            | `hello`                     |
 | `@uri`     | `"a b/c?x=1"`           | `a%20b%2Fc%3Fx%3D1`         |
+| `@html`    | `"<b>R&D</b>"`          | `&lt;b&gt;R&amp;D&lt;/b&gt;`|
 | `@sh`      | `"it's ok"`             | `'it'\''s ok'`              |
 | `@csv`     | `["anna",30,true,null]` | `"anna",30,true,`           |
 | `@tsv`     | `["anna",30,true,null]` | `anna<tab>30<tab>true<tab>` |
@@ -734,7 +738,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase` — conversion/case builtins
 - `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
-- `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`
+- `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
 

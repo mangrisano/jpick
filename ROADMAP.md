@@ -19,7 +19,8 @@ This document tracks what has shipped and what is being considered next.
   `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`,
   `rtrimstr`.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
-  `@json`, `@base64`, `@base64d`, `@uri`, `@sh`).
+  `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`,
+  `@sh`).
 - Output control: compact / pretty / raw, custom indent, sorted keys.
 - **Streaming input** (NDJSON) and `--slurp` to collect inputs into one array.
 - Reads from **stdin** or a **file**; clear errors and non-zero exit codes.
@@ -27,7 +28,9 @@ This document tracks what has shipped and what is being considered next.
 
 ## Considering next
 
-- Additional `@` formats (`@html`, `@base32`).
+- String predicates `startswith("s")` / `endswith("s")` (pair well with
+  `select`).
+- `flatten` to collapse nested arrays one or more levels deep.
 
 ## Non-goals
 
