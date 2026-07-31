@@ -313,6 +313,56 @@ printf '1\n2\n3\n4\n' | jpick -s 'add'
 10
 ```
 
+More `--slurp` patterns — count the values, take the extremes, or sort them:
+
+```bash
+# how many log lines?
+printf '{"a":1}\n{"a":2}\n{"a":3}\n' | jpick -s 'length'
+```
+
+```text
+3
+```
+
+```bash
+# highest value in a numeric stream
+printf '3\n1\n4\n1\n5\n' | jpick -s 'max'
+```
+
+```text
+5
+```
+
+```bash
+# sort and de-duplicate a stream
+printf '3\n1\n2\n1\n3\n' | jpick -s 'unique'
+```
+
+```text
+[1, 2, 3]
+```
+
+```bash
+# first / last value of the stream
+printf '10\n20\n30\n' | jpick -s 'first'
+```
+
+```text
+10
+```
+
+Because `jpick` has no `map`, aggregating over a *field* is a two-stage pipe:
+extract the field from each value, then slurp the results. For example, to sort
+every user's name across newline-delimited objects:
+
+```bash
+printf '{"n":"c"}\n{"n":"a"}\n{"n":"b"}\n' | jpick -s '.[].n' | jpick -s 'sort'
+```
+
+```text
+["a", "b", "c"]
+```
+
 ### Sort object keys
 
 `-S`/`--sort-keys` emits object keys in ascending order (recursively). Without
