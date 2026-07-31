@@ -351,7 +351,7 @@ printf '10\n20\n30\n' | jpick -s 'first'
 10
 ```
 
-Because `jpick` has no `map`, aggregating over a *field* is a two-stage pipe:
+Because `jpick` has no `map`, aggregating over a _field_ is a two-stage pipe:
 extract the field from each value, then slurp the results. For example, to sort
 every user's name across newline-delimited objects:
 
@@ -647,19 +647,19 @@ Combine with `-r` for clean output.
 
 One example per format (each run as `echo '<input>' | jpick -r '. | @<fmt>'`):
 
-| Format     | Input                   | Output                      |
-| ---------- | ----------------------- | --------------------------- |
-| `@text`    | `42`                    | `42`                        |
-| `@json`    | `{"a":1,"b":[2,3]}`     | `{"a": 1, "b": [2, 3]}`     |
-| `@base64`  | `"hello"`               | `aGVsbG8=`                  |
-| `@base64d` | `"aGVsbG8="`            | `hello`                     |
-| `@base32`  | `"hello"`               | `NBSWY3DP`                  |
-| `@base32d` | `"NBSWY3DP"`            | `hello`                     |
-| `@uri`     | `"a b/c?x=1"`           | `a%20b%2Fc%3Fx%3D1`         |
-| `@html`    | `"<b>R&D</b>"`          | `&lt;b&gt;R&amp;D&lt;/b&gt;`|
-| `@sh`      | `"it's ok"`             | `'it'\''s ok'`              |
-| `@csv`     | `["anna",30,true,null]` | `"anna",30,true,`           |
-| `@tsv`     | `["anna",30,true,null]` | `anna<tab>30<tab>true<tab>` |
+| Format     | Input                   | Output                       |
+| ---------- | ----------------------- | ---------------------------- |
+| `@text`    | `42`                    | `42`                         |
+| `@json`    | `{"a":1,"b":[2,3]}`     | `{"a": 1, "b": [2, 3]}`      |
+| `@base64`  | `"hello"`               | `aGVsbG8=`                   |
+| `@base64d` | `"aGVsbG8="`            | `hello`                      |
+| `@base32`  | `"hello"`               | `NBSWY3DP`                   |
+| `@base32d` | `"NBSWY3DP"`            | `hello`                      |
+| `@uri`     | `"a b/c?x=1"`           | `a%20b%2Fc%3Fx%3D1`          |
+| `@html`    | `"<b>R&D</b>"`          | `&lt;b&gt;R&amp;D&lt;/b&gt;` |
+| `@sh`      | `"it's ok"`             | `'it'\''s ok'`               |
+| `@csv`     | `["anna",30,true,null]` | `"anna",30,true,`            |
+| `@tsv`     | `["anna",30,true,null]` | `anna<tab>30<tab>true<tab>`  |
 
 Turning an array of rows into CSV:
 
