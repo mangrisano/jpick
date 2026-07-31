@@ -17,8 +17,10 @@ serializer.
 ## Features
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
-- Query values with a path expression: object keys, **array indices**, and **iteration** (`[]`)
+- **jq-compatible** behavior: missing fields and out-of-range indices return `null` instead of an error
+- Query values with a path expression: object keys, **array indices**, **slices** (`[1:3]`), and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
+- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -172,6 +174,27 @@ echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[].name'
 "luca"
 ```
 
+### Slice an array
+
+`[start:end]` extracts a sub-array (like `jq`). Both bounds are optional and
+negative indices count from the end. Out-of-range bounds are clamped:
+
+```bash
+echo '[0,1,2,3,4]' | jpick '.[1:3]'
+```
+
+```text
+[1, 2]
+```
+
+```bash
+echo '[0,1,2,3,4]' | jpick '.[-2:]'
+```
+
+```text
+[3, 4]
+```
+
 ### Pipe
 
 The pipe operator `|` feeds every result of one stage into the next. `.a | .b`
@@ -246,6 +269,127 @@ echo '{"a":[1,2]}' | jpick --indent 4
 }
 ```
 
+### Missing fields return `null`
+
+Like `jq`, accessing a field that does not exist or an array index that is out
+of range returns `null` instead of an error:
+
+```bash
+echo '{"a":1}' | jpick '.b'
+```
+
+```text
+null
+```
+
+```bash
+echo '[10,20]' | jpick '.[5]'
+```
+
+```text
+null
+```
+
+This makes it safe to query optional fields in real-world data.
+
+### Builtin: `length`
+
+Returns the number of elements in an array or object, or the number of
+characters in a string:
+
+```bash
+echo '{"users":[{"name":"anna"},{"name":"luca"},{"name":"sara"}]}' | jpick '.users | length'
+```
+
+```text
+3
+```
+
+```bash
+echo '"hello"' | jpick 'length'
+```
+
+```text
+5
+```
+
+For other types, `length` returns `null`.
+
+### Builtin: `keys`
+
+Returns an array of an object's keys (sorted alphabetically) or an array's
+indices:
+
+```bash
+echo '{"zebra":1,"apple":2}' | jpick 'keys'
+```
+
+```text
+["apple", "zebra"]
+```
+
+```bash
+echo '[10,20,30]' | jpick 'keys'
+```
+
+```text
+[0, 1, 2]
+```
+
+### Builtin: `type`
+
+Returns the JSON type of a value as a string:
+
+```bash
+echo '[1, "text", null, true, {}, []]' | jpick '.[] | type'
+```
+
+```text
+"number"
+"string"
+"null"
+"boolean"
+"object"
+"array"
+```
+
+### Builtin: `has`
+
+Tests whether an object has a given key, returning `true` or `false`. Useful
+for checking optional fields:
+
+```bash
+echo '{"name":"anna","age":30}' | jpick 'has("age")'
+```
+
+```text
+true
+```
+
+### Builtin: `not`
+
+Negates a boolean. Combine it with `has` to test for a missing key:
+
+```bash
+echo '{"name":"anna"}' | jpick 'has("age") | not'
+```
+
+```text
+true
+```
+
+### Builtin: `empty`
+
+Produces no output, removing the value from the stream. Useful to drop results:
+
+```bash
+echo '[1,2,3]' | jpick '.[] | empty'
+```
+
+```text
+
+```
+
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
@@ -314,23 +458,28 @@ echo '{"ok":true,"ratio":6.022e23,"missing":null}' | jpick '.ratio'
 
 ### Errors
 
-Invalid input, a missing field, or an out-of-range index print a message to
-`stderr` and exit with status `1`:
+Invalid JSON input, or applying a step to the wrong type (e.g. indexing a
+number), prints a message to `stderr` and exits with status `1`:
 
 ```bash
-echo '{"a":1}' | jpick '.b'
-# jpick: Field does not exist   (exit code 1)
+echo 'not json' | jpick
+# jpick: ...   (exit code 1)
 
-echo '{"a":[1]}' | jpick '.a[5]'
-# jpick: Index out of range     (exit code 1)
+echo '42' | jpick '.a'
+# jpick: Value is not an Object   (exit code 1)
 ```
+
+Accessing a missing field or an out-of-range index is **not** an error: it
+returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 
 ## Path syntax
 
-- `.key` — descend into an object by key
-- `[n]` — index into an array (0-based)
+- `.key` — descend into an object by key (missing keys return `null`)
+- `[n]` — index into an array (0-based; out-of-range returns `null`)
+- `[start:end]` — slice an array; bounds optional, negative indices allowed
 - `[]` — iterate over every element of an array (one result per element)
 - `|` — pipe: feed every result of one stage into the next
+- `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
