@@ -22,7 +22,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - Compose queries with the **pipe** operator (`|`)
 - Provide defaults with the **alternative** operator (`//`): `.price // 0`
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
-- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split` (jq-compatible)
+- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -582,6 +582,62 @@ echo '"a,b,c"' | jpick 'split(",")'
 ["a", "b", "c"]
 ```
 
+### Builtins: `tonumber`, `tostring`
+
+Convert between numbers and strings. `tonumber` parses a string (or passes a
+number through); `tostring` renders any value as a string:
+
+```bash
+echo '"42"' | jpick 'tonumber'
+```
+
+```text
+42
+```
+
+This is handy when numbers arrive as strings — parse them, then aggregate:
+
+```bash
+printf '"10"\n"20"\n"12"\n' | jpick 'tonumber' | jpick -s 'add'
+```
+
+```text
+42
+```
+
+### Builtins: `ascii_downcase`, `ascii_upcase`
+
+Change the case of the ASCII letters in a string:
+
+```bash
+echo '"Hello World"' | jpick -r 'ascii_downcase'
+```
+
+```text
+hello world
+```
+
+### Builtins: `ltrimstr`, `rtrimstr`
+
+Strip a prefix or suffix if present (the value is left unchanged otherwise) —
+useful for tags, versions and file names:
+
+```bash
+echo '"v2.1.0"' | jpick -r 'ltrimstr("v")'
+```
+
+```text
+2.1.0
+```
+
+```bash
+echo '"report.csv"' | jpick -r 'rtrimstr(".csv")'
+```
+
+```text
+report
+```
+
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
@@ -674,7 +730,8 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `//` — alternative: fall back when the left side is `null`, `false`, or missing
 - `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
 - `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last` — aggregate builtins
-- `join("sep")`, `split("sep")` — string/array builtins
+- `join("sep")`, `split("sep")`, `ltrimstr("s")`, `rtrimstr("s")` — string builtins
+- `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase` — conversion/case builtins
 - `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@uri`, `@sh`, `@csv`, `@tsv`

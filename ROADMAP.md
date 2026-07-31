@@ -15,7 +15,9 @@ This document tracks what has shipped and what is being considered next.
 - **Pipe** (`|`) and **alternative** (`//`) operators.
 - **Filtering** with `select(...)` (truthiness).
 - Builtins: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`,
-  `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`.
+  `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`,
+  `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`,
+  `rtrimstr`.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
   `@json`, `@base64`, `@base64d`, `@uri`, `@sh`).
 - Output control: compact / pretty / raw, custom indent, sorted keys.
@@ -26,8 +28,6 @@ This document tracks what has shipped and what is being considered next.
 ## Considering next
 
 - Additional `@` formats (`@html`, `@base32`).
-- More scalar builtins where they stay simple (`ascii_downcase`, `ltrimstr`,
-  `tonumber`, `tostring`).
 
 ## Non-goals
 

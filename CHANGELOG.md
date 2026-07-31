@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   value, like `jq`.
 - `-s`/`--slurp` flag: read all input values into a single array, so they can
   be aggregated (e.g. `jpick -s 'add'`), like `jq -s`.
+- Conversion builtins **`tonumber`** (parse a string as a number) and
+  **`tostring`** (render any value as a string), like `jq`.
+- String builtins **`ascii_downcase`**, **`ascii_upcase`**, **`ltrimstr("s")`**
+  (strip a prefix) and **`rtrimstr("s")`** (strip a suffix), like `jq`.
 
 ### Changed
 
