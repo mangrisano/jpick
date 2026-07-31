@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`map(expr)`**: apply an expression to every element of an array and collect
+  the results into a new array (e.g. `map(.price) | add`), like `jq`. It
+  composes with paths, `select`, pipes and builtins.
+- **`fromjson`**: parse a string that contains JSON into a value — the inverse
+  of `@json`, handy for JSON-encoded fields in logs, like `jq`.
 - Streaming input: when the input holds several JSON values (NDJSON or
   whitespace-separated), each is processed in turn — one output per input
   value, like `jq`.

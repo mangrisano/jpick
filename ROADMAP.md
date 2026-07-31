@@ -13,11 +13,11 @@ This document tracks what has shipped and what is being considered next.
 - Path queries: object keys, array **indices**, **slices** (`[a:b]`) and
   **iteration** (`[]`).
 - **Pipe** (`|`) and **alternative** (`//`) operators.
-- **Filtering** with `select(...)` (truthiness).
+- **Filtering** with `select(...)` and **transformation** with `map(...)`.
 - Builtins: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`,
   `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`,
-  `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`,
-  `rtrimstr`.
+  `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`,
+  `ltrimstr`, `rtrimstr`.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
   `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`,
   `@sh`).

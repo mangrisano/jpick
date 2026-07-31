@@ -22,7 +22,9 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - Compose queries with the **pipe** operator (`|`)
 - Provide defaults with the **alternative** operator (`//`): `.price // 0`
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
-- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr` (jq-compatible)
+- **Transform** each element with `map(...)`: `map(.price) | add`
+- Decode embedded JSON with **`fromjson`** (and encode with `@json`)
+- **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -256,6 +258,42 @@ anna
 Because a missing field is `null` (falsy), `select` safely skips values that
 lack the field instead of erroring. `jpick` keeps this deliberately small: for
 comparisons like `select(.age > 18)`, reach for `jq`.
+
+### Transform with `map`
+
+`map(expr)` applies `expr` to every element of an array and collects the
+results into a new array — the idiomatic way to reshape or aggregate (like
+`jq`). It composes with paths, `select`, pipes and builtins:
+
+```bash
+echo '[{"price":9},{"price":3},{"price":7}]' | jpick 'map(.price) | add'
+```
+
+```text
+19
+```
+
+```bash
+echo '[{"a":1,"ok":true},{"a":2,"ok":false},{"a":3,"ok":true}]' \
+  | jpick 'map(select(.ok) | .a)'
+```
+
+```text
+[1, 3]
+```
+
+### Decode embedded JSON with `fromjson`
+
+`fromjson` parses a string that contains JSON into a real value — the inverse
+of `@json`. This is handy for logs where a field is a JSON-encoded string:
+
+```bash
+echo '{"payload":"{\"id\":42}"}' | jpick '.payload | fromjson | .id'
+```
+
+```text
+42
+```
 
 ### Interpolate values into a string
 
@@ -736,7 +774,9 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last` — aggregate builtins
 - `join("sep")`, `split("sep")`, `ltrimstr("s")`, `rtrimstr("s")` — string builtins
 - `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase` — conversion/case builtins
+- `fromjson` — parse a JSON string into a value (inverse of `@json`)
 - `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
+- `map(expr)` — apply `expr` to every array element, collecting the results
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
