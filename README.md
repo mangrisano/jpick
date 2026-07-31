@@ -14,6 +14,8 @@ It is a small, dependency-free binary built from scratch: a hand-written lexer,
 a recursive-descent parser, a `std::variant`-based data model, a path query
 engine, and a serializer — the querying essentials of `jq`, without the runtime.
 
+<img src="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/demo.gif" alt="jpick demo" width="720">
+
 ## Features
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
