@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785769654238,
+  "lastUpdate": 1785770379643,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -155,6 +155,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 404.491,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "788980bfeb76658712cc7b986f1aefa6c6e7e774",
+          "message": "docs: add table of contents and move Differences-from-jq section up",
+          "timestamp": "2026-08-03T17:18:44+02:00",
+          "tree_id": "30419d95f7941ceaa441b5f0322845b8a0e7bffc",
+          "url": "https://github.com/mangrisano/jpick/commit/788980bfeb76658712cc7b986f1aefa6c6e7e774"
+        },
+        "date": 1785770379141,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 514.115,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 557.134,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 426.925,
             "unit": "ms"
           }
         ]
