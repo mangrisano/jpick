@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785770379643,
+  "lastUpdate": 1785770536936,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -194,6 +194,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 426.925,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "9515bb5861d02faff257869613f0c540cca360a0",
+          "message": "docs: normalize Differences table formatting",
+          "timestamp": "2026-08-03T17:21:21+02:00",
+          "tree_id": "49b3613bfd2264bd94ee98e31e04f81fff9211e9",
+          "url": "https://github.com/mangrisano/jpick/commit/9515bb5861d02faff257869613f0c540cca360a0"
+        },
+        "date": 1785770536165,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 497.5,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 534.395,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 411.156,
             "unit": "ms"
           }
         ]
