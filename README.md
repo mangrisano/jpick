@@ -24,6 +24,19 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 
 <img src="https://raw.githubusercontent.com/mangrisano/jpick/main/docs/demo.gif" alt="jpick demo" width="720">
 
+## Contents
+
+- [Features](#features)
+- [Differences from `jq`](#differences-from-jq)
+- [Install](#install)
+- [Build](#build)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Path syntax](#path-syntax)
+- [Project layout](#project-layout)
+- [Notes and limitations](#notes-and-limitations)
+- [License](#license)
+
 ## Features
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
@@ -44,6 +57,27 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - Read **plain text** with `-R`/`--raw-input`: each line becomes a string, like `jq -R`
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
+
+## Differences from `jq`
+
+`jpick` covers the querying and extraction essentials of `jq`, but it is a
+focused extractor and light transformer, **not** a full programming language.
+The table below summarizes what it has and what it leaves to `jq`.
+
+| Area | In `jpick` | Not in `jpick` (use `jq`) |
+| --- | --- | --- |
+| Navigation | `.key`, `[n]`, `[a:b]`, `[]` | recursive descent `..`, optional `.a?` |
+| Composition & flow | pipe `\|`, alternative `//`, `select(...)`, `map(...)` | `if/then/else`, `try/catch`, `reduce`, `foreach` |
+| Arithmetic & logic | — | `+ - * / %`, `== != < > <= >=`, `and`/`or` (so `select(.age > 18)` is out of scope) |
+| Construction | — | object `{a: .x}`, array `[ ... ]`, comma `.a, .b` |
+| Variables & functions | — | `... as $x`, `def` |
+| Update / assignment | — | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths` |
+| Regular expressions | — | `test`, `match`, `capture`, `scan`, `sub`, `gsub` |
+| Builtins | `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`/`upcase`, `ltrimstr`/`rtrimstr`, `startswith`/`endswith` | `sort_by`, `group_by`, `unique_by`, `to_entries`/`from_entries`, `flatten`, `range`, `contains`, `walk`, math & date functions |
+| Strings | interpolation `"\(...)"` (exactly one value) | regex-based string ops (see above) |
+| Formats | `@text`, `@json`, `@base64`/`@base64d`, `@base32`/`@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv` | — |
+| Output | **compact by default**, `--pretty`, `--indent`/`--tab`, `-S`/`--sort-keys`, `-r`/`--raw-output` | pretty-printed by default |
+| Input | stdin or file, NDJSON stream, `-s`/`--slurp`, `-R`/`--raw-input` | `input`/`inputs`, `env`/`$ENV`, `--arg`/`--argjson`/`--stream` |
 
 ## Install
 
@@ -846,27 +880,6 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
-
-## Differences from `jq`
-
-`jpick` covers the querying and extraction essentials of `jq`, but it is a
-focused extractor and light transformer, **not** a full programming language.
-The table below summarizes what it has and what it leaves to `jq`.
-
-| Area                  | In `jpick`                                                                                                                                    | Not in `jpick` (use `jq`)                                                                            |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                 | recursive descent `..`, optional `.a?`                                                              |
-| Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                       | `if/then/else`, `try/catch`, `reduce`, `foreach`                                                    |
-| Arithmetic & logic    | —                                                                                                                                            | `+ - * / %`, `== != < > <= >=`, `and`/`or` (so `select(.age > 18)` is out of scope)                 |
-| Construction          | —                                                                                                                                            | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                                    |
-| Variables & functions | —                                                                                                                                            | `... as $x`, `def`                                                                                   |
-| Update / assignment   | —                                                                                                                                            | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                                           |
-| Regular expressions   | —                                                                                                                                            | `test`, `match`, `capture`, `scan`, `sub`, `gsub`                                                   |
-| Builtins              | `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`/`upcase`, `ltrimstr`/`rtrimstr`, `startswith`/`endswith` | `sort_by`, `group_by`, `unique_by`, `to_entries`/`from_entries`, `flatten`, `range`, `contains`, `walk`, math & date functions |
-| Strings               | interpolation `"\(...)"` (exactly one value)                                                                                                 | regex-based string ops (see above)                                                                  |
-| Formats               | `@text`, `@json`, `@base64`/`@base64d`, `@base32`/`@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`                                          | —                                                                                                   |
-| Output                | **compact by default**, `--pretty`, `--indent`/`--tab`, `-S`/`--sort-keys`, `-r`/`--raw-output`                                              | pretty-printed by default                                                                           |
-| Input                 | stdin or file, NDJSON stream, `-s`/`--slurp`, `-R`/`--raw-input`                                                                            | `input`/`inputs`, `env`/`$ENV`, `--arg`/`--argjson`/`--stream`                                       |
 
 ## Project layout
 
