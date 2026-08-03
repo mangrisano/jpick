@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785536040653,
+  "lastUpdate": 1785769654238,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -116,6 +116,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 417.519,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "fd411de4d35c0db72c6543251440691699b7d66a",
+          "message": "chore(release): 2.3.0",
+          "timestamp": "2026-08-03T17:04:22+02:00",
+          "tree_id": "fc97870d925fdc6622c6565fbc67983e42a2fce5",
+          "url": "https://github.com/mangrisano/jpick/commit/fd411de4d35c0db72c6543251440691699b7d66a"
+        },
+        "date": 1785769653505,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 496.915,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 535.3,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 404.491,
             "unit": "ms"
           }
         ]
