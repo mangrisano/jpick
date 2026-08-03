@@ -41,6 +41,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Sort object keys** with `-S`/`--sort-keys`
 - **Raw** string output (`-r`/`--raw-output`), like `jq -r`
 - Process a **stream of JSON values** (NDJSON), or combine them with `-s`/`--slurp`
+- Read **plain text** with `-R`/`--raw-input`: each line becomes a string, like `jq -R`
 - Read from **stdin** or a **file**
 - Clear error messages with a non-zero exit code on failure
 
@@ -109,6 +110,7 @@ Options:
   -r,--raw-output  Output strings without quotes or escaping
   -S,--sort-keys   Sort object keys in the output
   -s,--slurp       Read all inputs into a single array
+  -R,--raw-input   Read each input line as a string instead of parsing JSON
   --indent INT     Indent with N spaces (implies --pretty)
   --tab            Indent with tabs (implies --pretty)
 ```
@@ -399,9 +401,10 @@ printf '10\n20\n30\n' | jpick -s 'first'
 10
 ```
 
-Because `jpick` has no `map`, aggregating over a _field_ is a two-stage pipe:
-extract the field from each value, then slurp the results. For example, to sort
-every user's name across newline-delimited objects:
+Because each NDJSON value is processed on its own, aggregating over a _field_
+across the whole stream is a two-stage pipe: extract the field from each value,
+then slurp the results. For example, to sort every user's name across
+newline-delimited objects:
 
 ```bash
 printf '{"n":"c"}\n{"n":"a"}\n{"n":"b"}\n' | jpick -s '.[].n' | jpick -s 'sort'
@@ -409,6 +412,44 @@ printf '{"n":"c"}\n{"n":"a"}\n{"n":"b"}\n' | jpick -s '.[].n' | jpick -s 'sort'
 
 ```text
 ["a", "b", "c"]
+```
+
+### Read plain text with `-R`
+
+By default `jpick` parses its input as JSON. `-R`/`--raw-input` instead treats
+each input line as a string (like `jq -R`), so the string builtins can process
+logs and other non-JSON text:
+
+```bash
+printf 'v1.2.0\nv1.3.0\n' | jpick -R -r 'ltrimstr("v")'
+```
+
+```text
+1.2.0
+1.3.0
+```
+
+Because each line is now a string, it composes with `select`, `split` and the
+`@` formats:
+
+```bash
+printf 'ERROR: boom\nINFO: ok\nERROR: bad\n' | jpick -R -r 'select(startswith("ERROR"))'
+```
+
+```text
+ERROR: boom
+ERROR: bad
+```
+
+Combined with `-s`/`--slurp`, the **whole** input becomes a single string
+(like `jq -Rs`):
+
+```bash
+echo 'hello' | jpick -R -s -r '@base64'
+```
+
+```text
+aGVsbG8K
 ```
 
 ### Sort object keys
@@ -805,6 +846,27 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `@fmt` — format a value: `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`
 - Steps can be chained: `.a.b[0].c[1][2]`, `.users[].name`, `.users[] | .name`
 - An empty path (or none) selects the whole document
+
+## Differences from `jq`
+
+`jpick` covers the querying and extraction essentials of `jq`, but it is a
+focused extractor and light transformer, **not** a full programming language.
+The table below summarizes what it has and what it leaves to `jq`.
+
+| Area                  | In `jpick`                                                                                                                                    | Not in `jpick` (use `jq`)                                                                            |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                 | recursive descent `..`, optional `.a?`                                                              |
+| Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                       | `if/then/else`, `try/catch`, `reduce`, `foreach`                                                    |
+| Arithmetic & logic    | —                                                                                                                                            | `+ - * / %`, `== != < > <= >=`, `and`/`or` (so `select(.age > 18)` is out of scope)                 |
+| Construction          | —                                                                                                                                            | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                                    |
+| Variables & functions | —                                                                                                                                            | `... as $x`, `def`                                                                                   |
+| Update / assignment   | —                                                                                                                                            | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                                           |
+| Regular expressions   | —                                                                                                                                            | `test`, `match`, `capture`, `scan`, `sub`, `gsub`                                                   |
+| Builtins              | `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`/`upcase`, `ltrimstr`/`rtrimstr`, `startswith`/`endswith` | `sort_by`, `group_by`, `unique_by`, `to_entries`/`from_entries`, `flatten`, `range`, `contains`, `walk`, math & date functions |
+| Strings               | interpolation `"\(...)"` (exactly one value)                                                                                                 | regex-based string ops (see above)                                                                  |
+| Formats               | `@text`, `@json`, `@base64`/`@base64d`, `@base32`/`@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`                                          | —                                                                                                   |
+| Output                | **compact by default**, `--pretty`, `--indent`/`--tab`, `-S`/`--sort-keys`, `-r`/`--raw-output`                                              | pretty-printed by default                                                                           |
+| Input                 | stdin or file, NDJSON stream, `-s`/`--slurp`, `-R`/`--raw-input`                                                                            | `input`/`inputs`, `env`/`$ENV`, `--arg`/`--argjson`/`--stream`                                       |
 
 ## Project layout
 

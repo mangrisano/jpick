@@ -23,6 +23,8 @@ This document tracks what has shipped and what is being considered next.
   `@sh`).
 - Output control: compact / pretty / raw, custom indent, sorted keys.
 - **Streaming input** (NDJSON) and `--slurp` to collect inputs into one array.
+- **Raw input** (`-R`/`--raw-input`): read each line as a string instead of
+  JSON (with `--slurp`, the whole input as one string).
 - Reads from **stdin** or a **file**; clear errors and non-zero exit codes.
 - CI (Linux + macOS), test suite (doctest), Homebrew tap and release binaries.
 
@@ -30,6 +32,8 @@ This document tracks what has shipped and what is being considered next.
 
 - `flatten` to collapse nested arrays one or more levels deep.
 - Numeric builtins (`floor`, `ceil`, `round`, `abs`).
+- **`env`** builtin: expose environment variables as an object (e.g.
+  `env.HOME`), navigable with the existing path syntax.
 
 ## Non-goals
 
