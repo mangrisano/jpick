@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-08-03
+
+### Added
+
+- `-R`/`--raw-input`: read each input line as a JSON string instead of parsing
+  JSON; with `-s`/`--slurp`, read the entire input as a single string. This
+  lets the existing string builtins (`split`, `ltrimstr`, `startswith`,
+  `@base64`, ...) work on plain text and logs, like `jq -R`.
+
 ## [2.2.0] - 2026-07-31
 
 ### Added
@@ -164,7 +173,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.2.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.3.0...HEAD
+[2.3.0]: https://github.com/mangrisano/jpick/releases/tag/v2.3.0
 [2.2.0]: https://github.com/mangrisano/jpick/releases/tag/v2.2.0
 [2.1.0]: https://github.com/mangrisano/jpick/releases/tag/v2.1.0
 [2.0.0]: https://github.com/mangrisano/jpick/releases/tag/v2.0.0
