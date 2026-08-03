@@ -9,6 +9,27 @@
 
 using namespace jpick;
 
+// Split raw text into one string Value per line (used by --raw-input). Each
+// line's trailing newline is dropped; a final newline does not yield an extra
+// empty value.
+static std::vector<Value> read_raw_lines(const std::string &input)
+{
+    std::vector<Value> lines;
+    std::size_t start = 0;
+    while (start < input.size())
+    {
+        std::size_t newline = input.find('\n', start);
+        if (newline == std::string::npos)
+        {
+            lines.emplace_back(input.substr(start));
+            break;
+        }
+        lines.emplace_back(input.substr(start, newline - start));
+        start = newline + 1;
+    }
+    return lines;
+}
+
 int main(int argc, char *argv[])
 {
     CLI::App app{"jpick - a tiny jq-like JSON tool"};
@@ -21,6 +42,7 @@ int main(int argc, char *argv[])
     bool tab = false;
     bool sort_keys = false;
     bool slurp = false;
+    bool raw_input = false;
     int indent_spaces = -1;
 
     app.add_option("path", path, "Query path, e.g. '.a.b[0]'");
@@ -29,6 +51,8 @@ int main(int argc, char *argv[])
     app.add_flag("-r,--raw-output", raw, "Output strings without quotes or escaping");
     app.add_flag("-S,--sort-keys", sort_keys, "Sort object keys in the output");
     app.add_flag("-s,--slurp", slurp, "Read all inputs into a single array");
+    app.add_flag("-R,--raw-input", raw_input,
+                 "Read each input line as a string instead of parsing JSON");
     auto *indent_opt = app.add_option("--indent", indent_spaces,
                                       "Indent with N spaces (implies --pretty)")
                            ->check(CLI::NonNegativeNumber);
@@ -72,15 +96,28 @@ int main(int argc, char *argv[])
 
     try
     {
-        std::vector<Token> tokens = tokenize(input);
-        Parser parser(tokens);
-        std::vector<Value> inputs = parser.parse_all();
-
-        // --slurp collects every input value into a single array.
-        if (slurp)
+        std::vector<Value> inputs;
+        if (raw_input)
         {
-            Array all = std::move(inputs);
-            inputs = {Value(std::move(all))};
+            // --raw-input treats the input as text, not JSON. With --slurp the
+            // whole input becomes one string; otherwise each line becomes one.
+            if (slurp)
+                inputs = {Value(input)};
+            else
+                inputs = read_raw_lines(input);
+        }
+        else
+        {
+            std::vector<Token> tokens = tokenize(input);
+            Parser parser(tokens);
+            inputs = parser.parse_all();
+
+            // --slurp collects every input value into a single array.
+            if (slurp)
+            {
+                Array all = std::move(inputs);
+                inputs = {Value(std::move(all))};
+            }
         }
 
         for (const Value &input_value : inputs)
