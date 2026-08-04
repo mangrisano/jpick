@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-08-04
+
+### Added
+
+- **Comparison operators** `==`, `!=`, `<`, `<=`, `>`, `>=`, following jq's
+  total order over JSON values. They compose with `select` and `map`, so
+  conditions like `select(.age >= 18)` and `.[] | . > 2` now work.
+
+### Fixed
+
+- A comparison expression such as `.status == "EXPIRED"` was silently parsed
+  as a single literal field name and returned `null` (so
+  `select(.x == "y")` dropped every value). Comparisons are now real operators.
+
 ## [2.3.0] - 2026-08-03
 
 ### Added
@@ -173,7 +187,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.3.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.4.0...HEAD
+[2.4.0]: https://github.com/mangrisano/jpick/releases/tag/v2.4.0
 [2.3.0]: https://github.com/mangrisano/jpick/releases/tag/v2.3.0
 [2.2.0]: https://github.com/mangrisano/jpick/releases/tag/v2.2.0
 [2.1.0]: https://github.com/mangrisano/jpick/releases/tag/v2.1.0
