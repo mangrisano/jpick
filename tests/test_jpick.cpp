@@ -676,6 +676,32 @@ TEST_CASE("query_pipe round-trips through to_entries and from_entries")
           parse_json("{\"b\":2}"));
 }
 
+TEST_CASE("contains tests deep containment like jq")
+{
+    // Strings: substring.
+    CHECK(query_pipe(parse_json("\"foobar\""), "contains(\"oob\")")[0].as_bool() == true);
+    CHECK(query_pipe(parse_json("\"foobar\""), "contains(\"xyz\")")[0].as_bool() == false);
+
+    // Arrays: every needle element is contained in some element.
+    CHECK(query_pipe(parse_json("[1,2,3]"), "contains([3,1])")[0].as_bool() == true);
+    CHECK(query_pipe(parse_json("[1,2,3]"), "contains([4])")[0].as_bool() == false);
+
+    // Objects: recursive subset, with substring matching on string values.
+    CHECK(query_pipe(parse_json("{\"a\":\"foobar\",\"b\":2}"),
+                     "contains({\"a\":\"foo\"})")[0]
+              .as_bool() == true);
+    CHECK(query_pipe(parse_json("{\"a\":1}"), "contains({\"b\":1})")[0].as_bool() == false);
+
+    // Scalars: equality.
+    CHECK(query_pipe(parse_json("42"), "contains(42)")[0].as_bool() == true);
+    CHECK(query_pipe(parse_json("42"), "contains(7)")[0].as_bool() == false);
+
+    // Pairs with select to filter a stream.
+    CHECK(query_pipe(parse_json("[\"apple\",\"banana\",\"grape\"]"),
+                     "map(select(contains(\"ap\")))")[0] ==
+          parse_json("[\"apple\", \"grape\"]"));
+}
+
 // -----------------------------------------------------------------------------
 // Builtin functions: not, empty, has
 // -----------------------------------------------------------------------------

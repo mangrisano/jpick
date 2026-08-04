@@ -729,6 +729,44 @@ namespace jpick
         return Value(std::move(out));
     }
 
+    // Deep containment test, matching jq's `contains`: a string contains a
+    // substring, an array contains another when each of its elements is
+    // contained in some element of the former, an object contains another when
+    // every key matches and its value is contained recursively, and any other
+    // value contains only an equal value.
+    inline bool value_contains(const Value &haystack, const Value &needle)
+    {
+        if (haystack.is_object() && needle.is_object())
+        {
+            for (const auto &[key, sub] : needle.as_object())
+            {
+                const Value *found = find_entry_field(haystack.as_object(), key);
+                if (!found || !value_contains(*found, sub))
+                    return false;
+            }
+            return true;
+        }
+        if (haystack.is_array() && needle.is_array())
+        {
+            for (const Value &want : needle.as_array())
+            {
+                bool found = false;
+                for (const Value &have : haystack.as_array())
+                    if (value_contains(have, want))
+                    {
+                        found = true;
+                        break;
+                    }
+                if (!found)
+                    return false;
+            }
+            return true;
+        }
+        if (haystack.is_string() && needle.is_string())
+            return haystack.as_string().find(needle.as_string()) != std::string::npos;
+        return haystack == needle;
+    }
+
     // Return the type of a value as a string.
     inline Value builtin_type(const Value &value)
     {
@@ -1365,6 +1403,12 @@ namespace jpick
         }
         if (segment.rfind("has(", 0) == 0)
             return {builtin_has(value, parse_string_arg(segment, "has"))};
+        if (segment.rfind("contains(", 0) == 0)
+        {
+            std::vector<Token> tokens = tokenize(parse_call_arg(segment, "contains"));
+            Parser parser(tokens);
+            return {Value(value_contains(value, parser.parse()))};
+        }
         if (segment.rfind("join(", 0) == 0)
             return {builtin_join(value, parse_string_arg(segment, "join"))};
         if (segment.rfind("split(", 0) == 0)
