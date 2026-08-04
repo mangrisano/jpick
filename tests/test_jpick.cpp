@@ -293,6 +293,27 @@ TEST_CASE("tokenize decodes escapes inside strings")
     CHECK(std::get<std::string>(t[0].value) == "a\nb"); // \n -> real newline
 }
 
+TEST_CASE("tokenize decodes \\uXXXX escapes as UTF-8")
+{
+    // A Basic Multilingual Plane code point (e-acute = U+00E9).
+    std::vector<Token> bmp = tokenize("\"caf\\u00e9\"");
+    CHECK(std::get<std::string>(bmp[0].value) == "caf\xC3\xA9");
+
+    // Plain ASCII expressed with \u.
+    std::vector<Token> ascii = tokenize("\"\\u0041\\u0042\"");
+    CHECK(std::get<std::string>(ascii[0].value) == "AB");
+
+    // A surrogate pair for an astral code point (U+1F600, grinning face).
+    std::vector<Token> astral = tokenize("\"\\uD83D\\uDE00\"");
+    CHECK(std::get<std::string>(astral[0].value) == "\xF0\x9F\x98\x80");
+
+    // Malformed escapes are rejected.
+    CHECK_THROWS_AS(tokenize("\"\\uZZZZ\""), std::exception); // non-hex digits
+    CHECK_THROWS_AS(tokenize("\"\\uD83D\""), std::exception); // unpaired high surrogate
+    CHECK_THROWS_AS(tokenize("\"\\uDE00\""), std::exception); // lone low surrogate
+    CHECK_THROWS_AS(tokenize("\"\\u00\""), std::exception);   // too few hex digits
+}
+
 // -----------------------------------------------------------------------------
 // query / split_path / query_path
 // -----------------------------------------------------------------------------

@@ -66,6 +66,57 @@ namespace jpick
         return value;
     }
 
+    // Read the four hex digits of a \uXXXX escape. `i` points at the 'u'; on
+    // return it points at the last hex digit consumed.
+    inline unsigned read_hex4(const std::string &input, std::size_t &i)
+    {
+        if (i + 4 >= input.size())
+            throw std::runtime_error("Incomplete \\u escape");
+        unsigned value = 0;
+        for (int k = 0; k < 4; ++k)
+        {
+            const char c = input[i + 1 + static_cast<std::size_t>(k)];
+            value <<= 4;
+            if (c >= '0' && c <= '9')
+                value |= static_cast<unsigned>(c - '0');
+            else if (c >= 'a' && c <= 'f')
+                value |= static_cast<unsigned>(c - 'a' + 10);
+            else if (c >= 'A' && c <= 'F')
+                value |= static_cast<unsigned>(c - 'A' + 10);
+            else
+                throw std::runtime_error("Invalid \\u escape");
+        }
+        i += 4;
+        return value;
+    }
+
+    // Append the UTF-8 encoding of a Unicode code point to `out`.
+    inline void append_utf8(std::string &out, unsigned cp)
+    {
+        if (cp <= 0x7F)
+        {
+            out += static_cast<char>(cp);
+        }
+        else if (cp <= 0x7FF)
+        {
+            out += static_cast<char>(0xC0 | (cp >> 6));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+        else if (cp <= 0xFFFF)
+        {
+            out += static_cast<char>(0xE0 | (cp >> 12));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+        else
+        {
+            out += static_cast<char>(0xF0 | (cp >> 18));
+            out += static_cast<char>(0x80 | ((cp >> 12) & 0x3F));
+            out += static_cast<char>(0x80 | ((cp >> 6) & 0x3F));
+            out += static_cast<char>(0x80 | (cp & 0x3F));
+        }
+    }
+
     inline std::string read_string(const std::string &input, std::size_t &i)
     {
         ++i;
@@ -104,6 +155,27 @@ namespace jpick
                 case 'f':
                     result += '\f';
                     break;
+                case 'u':
+                {
+                    unsigned cp = read_hex4(input, i); // i now at last hex digit
+                    if (cp >= 0xD800 && cp <= 0xDBFF)
+                    {
+                        // High surrogate: expect a following \uXXXX low surrogate.
+                        if (i + 2 >= input.size() || input[i + 1] != '\\' || input[i + 2] != 'u')
+                            throw std::runtime_error("Unpaired surrogate in \\u escape");
+                        i += 2; // move to the 'u' of the low surrogate
+                        const unsigned lo = read_hex4(input, i);
+                        if (lo < 0xDC00 || lo > 0xDFFF)
+                            throw std::runtime_error("Invalid low surrogate in \\u escape");
+                        cp = 0x10000 + ((cp - 0xD800) << 10) + (lo - 0xDC00);
+                    }
+                    else if (cp >= 0xDC00 && cp <= 0xDFFF)
+                    {
+                        throw std::runtime_error("Unexpected low surrogate in \\u escape");
+                    }
+                    append_utf8(result, cp);
+                    break;
+                }
                 default:
                     throw std::runtime_error("Incomplete escape");
                 }
