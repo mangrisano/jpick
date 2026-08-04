@@ -998,3 +998,50 @@ TEST_CASE("split_pipe and split_alternative are paren-aware")
     REQUIRE(parts.size() == 1);
     CHECK(parts[0] == "select(.n // 0)");
 }
+
+TEST_CASE("query_pipe evaluates comparison operators")
+{
+    // Equality and inequality on strings.
+    CHECK(query_pipe(parse_json("\"EXPIRED\""), ". == \"EXPIRED\"")[0].as_bool());
+    CHECK_FALSE(query_pipe(parse_json("\"VALID\""), ". == \"EXPIRED\"")[0].as_bool());
+    CHECK(query_pipe(parse_json("\"VALID\""), ". != \"EXPIRED\"")[0].as_bool());
+
+    // Ordering on numbers.
+    CHECK(query_pipe(parse_json("-20"), ". < 0")[0].as_bool());
+    CHECK_FALSE(query_pipe(parse_json("-20"), ". >= 0")[0].as_bool());
+    CHECK(query_pipe(parse_json("5"), ". <= 5")[0].as_bool());
+    CHECK(query_pipe(parse_json("5"), ". >= 5")[0].as_bool());
+
+    // A comparison can read fields on both sides.
+    CHECK(query_pipe(parse_json("{\"a\": 1, \"b\": 1}"), ".a == .b")[0].as_bool());
+    CHECK_FALSE(query_pipe(parse_json("{\"a\": 1, \"b\": 2}"), ".a == .b")[0].as_bool());
+
+    // select() keeps a value only when the comparison holds.
+    std::vector<Value> kept = query_pipe(
+        parse_json("[{\"s\": \"EXPIRED\"}, {\"s\": \"VALID\"}]"),
+        ".[] | select(.s == \"EXPIRED\") | .s");
+    REQUIRE(kept.size() == 1);
+    CHECK(kept[0].as_string() == "EXPIRED");
+
+    // The stream fans out to one boolean per input value.
+    std::vector<Value> flags = query_pipe(parse_json("[1, 2, 3, 4]"), ".[] | . > 2");
+    REQUIRE(flags.size() == 4);
+    CHECK_FALSE(flags[0].as_bool());
+    CHECK_FALSE(flags[1].as_bool());
+    CHECK(flags[2].as_bool());
+    CHECK(flags[3].as_bool());
+}
+
+TEST_CASE("comparison operators are not triggered inside string literals")
+{
+    // A '<' or '==' inside a string literal stays part of the string.
+    std::vector<Value> literal = query_pipe(parse_json("null"), "\"a<b == c\"");
+    REQUIRE(literal.size() == 1);
+    CHECK(literal[0].as_string() == "a<b == c");
+
+    // A comparison is a real operator, not a lookup of a field whose name
+    // happens to contain the operator text.
+    std::vector<Value> cmp = query_pipe(parse_json("{\"a == 1\": 999, \"a\": 1}"), ".a == 1");
+    REQUIRE(cmp.size() == 1);
+    CHECK(cmp[0].as_bool());
+}

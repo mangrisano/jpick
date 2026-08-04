@@ -1185,14 +1185,79 @@ namespace jpick
         return segment.substr(prefix.size(), segment.size() - prefix.size() - 1);
     }
 
+    // The comparison operators jpick understands, longest first so that "==" is
+    // matched before a stray "=" and "<="/">=" before "<"/">".
+    inline const std::vector<std::string> &comparison_operators()
+    {
+        static const std::vector<std::string> ops = {"==", "!=", "<=", ">=", "<", ">"};
+        return ops;
+    }
+
+    // Find the first top-level comparison operator in a segment, ignoring any
+    // inside string literals, parentheses or brackets. Returns its position and
+    // the operator text, or {npos, ""} when the segment has no comparison.
+    inline std::pair<std::size_t, std::string> find_comparison(const std::string &segment)
+    {
+        bool in_string = false;
+        int depth = 0;
+        for (std::size_t i = 0; i < segment.size(); ++i)
+        {
+            const char c = segment[i];
+            if (c == '"')
+                in_string = !in_string;
+            else if (c == '\\' && in_string && i + 1 < segment.size())
+                ++i; // keep an escaped char from toggling the string state
+            else if (!in_string && (c == '(' || c == '['))
+                ++depth;
+            else if (!in_string && (c == ')' || c == ']'))
+                --depth;
+            else if (!in_string && depth == 0)
+            {
+                for (const std::string &op : comparison_operators())
+                    if (segment.compare(i, op.size(), op) == 0)
+                        return {i, op};
+            }
+        }
+        return {std::string::npos, ""};
+    }
+
+    // Apply a comparison operator to two evaluated operands. Equality uses
+    // Value::operator== (order-independent for objects); ordering uses
+    // value_less (jq's total order).
+    inline Value compare_values(const Value &lhs, const std::string &op, const Value &rhs)
+    {
+        if (op == "==")
+            return Value(lhs == rhs);
+        if (op == "!=")
+            return Value(!(lhs == rhs));
+        if (op == "<")
+            return Value(value_less(lhs, rhs));
+        if (op == ">")
+            return Value(value_less(rhs, lhs));
+        if (op == "<=")
+            return Value(!value_less(rhs, lhs));
+        return Value(!value_less(lhs, rhs)); // ">="
+    }
+
     // Evaluate a single simple segment (no top-level '|' or '//') against one
-    // value. A segment starting with '"' is a string literal evaluated by
-    // interpolate; '@' is a format like @csv; true/false/null/a number is a
-    // scalar literal; select(expr) keeps the value when expr is truthy; a plain
-    // word may be a builtin; a name("arg") is a builtin with an argument;
-    // everything else is a navigation path.
+    // value. A top-level comparison (==, !=, <, <=, >, >=) yields a boolean; a
+    // segment starting with '"' is a string literal evaluated by interpolate;
+    // '@' is a format like @csv; true/false/null/a number is a scalar literal;
+    // select(expr) keeps the value when expr is truthy; a plain word may be a
+    // builtin; a name("arg") is a builtin with an argument; everything else is
+    // a navigation path.
     inline std::vector<Value> eval_simple(const Value &value, const std::string &segment)
     {
+        if (const auto [pos, op] = find_comparison(segment); pos != std::string::npos)
+        {
+            const std::string left = trim(segment.substr(0, pos));
+            const std::string right = trim(segment.substr(pos + op.size()));
+            std::vector<Value> out;
+            for (const Value &lhs : query_pipe(value, left))
+                for (const Value &rhs : query_pipe(value, right))
+                    out.push_back(compare_values(lhs, op, rhs));
+            return out;
+        }
         if (!segment.empty() && segment.front() == '"')
             return {Value(interpolate(segment, value))};
         if (!segment.empty() && segment.front() == '@')
