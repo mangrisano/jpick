@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785828995365,
+  "lastUpdate": 1785833131791,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -272,6 +272,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 413.111,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "1f9bb7a8d200e7462c1789fb78806451f8d2f922",
+          "message": "docs: document to_entries and from_entries\n\nAdd README examples and reference entries, move comparison operators to Shipped in the ROADMAP with a design-principle note, and add a CHANGELOG entry.",
+          "timestamp": "2026-08-04T10:44:22+02:00",
+          "tree_id": "920b5be665ba69612f26335f6cd1283cbc64e387",
+          "url": "https://github.com/mangrisano/jpick/commit/1f9bb7a8d200e7462c1789fb78806451f8d2f922"
+        },
+        "date": 1785833131311,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 437.689,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 451.241,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 345.495,
             "unit": "ms"
           }
         ]
