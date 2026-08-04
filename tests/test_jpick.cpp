@@ -560,6 +560,18 @@ TEST_CASE("interpolate replaces \\( ... ) with the raw value")
     CHECK(interpolate("\"a\\nb\"", v) == "a\nb");
 }
 
+TEST_CASE("interpolate matches the parentheses of nested calls")
+{
+    Value v = parse_json("{\"assets\": [{\"n\": 1}, {\"n\": 2}, {\"n\": 3}]}");
+
+    // A nested call such as map(...) must not close the interpolation early.
+    CHECK(interpolate("\"total: \\(.assets | map(.n) | add)\"", v) == "total: 6");
+
+    // Parentheses inside a string argument are ignored.
+    Value w = parse_json("{\"parts\": [\"a\", \"b\"]}");
+    CHECK(interpolate("\"\\(.parts | join(\")(\"))\"", w) == "a)(b");
+}
+
 TEST_CASE("interpolate errors on multiple values or an unclosed \\(")
 {
     Value v = parse_json("{\"a\": [1, 2, 3]}");

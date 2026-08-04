@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- String interpolation now matches the balanced closing `)` of `\( ... )`, so
+  nested calls no longer close it early. Expressions like
+  `"\(.assets | map(.download_count) | add)"` previously broke on the inner
+  `map(...)`; parentheses inside string arguments are ignored too.
+
 ## [2.5.0] - 2026-08-04
 
 ### Added

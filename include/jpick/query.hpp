@@ -575,8 +575,31 @@ namespace jpick
             const char next = literal[i + 1];
             if (next == '(')
             {
-                const std::size_t close = literal.find(')', i + 2);
-                if (close == std::string::npos)
+                // Find the matching ')' by tracking nesting depth so inner
+                // calls like map(...) don't close the interpolation early.
+                // Parentheses inside string literals are ignored.
+                std::size_t depth = 1;
+                bool in_string = false;
+                std::size_t close = i + 2;
+                for (; close + 1 < literal.size(); ++close)
+                {
+                    const char e = literal[close];
+                    if (in_string)
+                    {
+                        if (e == '\\')
+                            ++close; // skip the escaped character
+                        else if (e == '"')
+                            in_string = false;
+                        continue;
+                    }
+                    if (e == '"')
+                        in_string = true;
+                    else if (e == '(')
+                        ++depth;
+                    else if (e == ')' && --depth == 0)
+                        break;
+                }
+                if (depth != 0)
                     throw std::runtime_error("String interpolation is missing ')'");
                 const std::string inner = literal.substr(i + 2, close - (i + 2));
                 std::vector<Value> results = query_pipe(value, inner);
