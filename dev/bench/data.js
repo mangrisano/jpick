@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785833131791,
+  "lastUpdate": 1785834135274,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -311,6 +311,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 345.495,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "d25e5a86a7e8e0100114aaaeff9c573c2c81c758",
+          "message": "docs: document contains builtin\n\nAdd a README example and reference entry, move contains from \"Not in jpick\" to \"In jpick\" in the differences table, list it in the ROADMAP, and add a CHANGELOG entry.",
+          "timestamp": "2026-08-04T11:01:15+02:00",
+          "tree_id": "585dff398906fe4580f44d8f29a30caf3681f090",
+          "url": "https://github.com/mangrisano/jpick/commit/d25e5a86a7e8e0100114aaaeff9c573c2c81c758"
+        },
+        "date": 1785834134555,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 518.13,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 533.163,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 411.218,
             "unit": "ms"
           }
         ]
