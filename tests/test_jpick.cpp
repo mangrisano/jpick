@@ -1118,3 +1118,48 @@ TEST_CASE("comparison operators are not triggered inside string literals")
     REQUIRE(cmp.size() == 1);
     CHECK(cmp[0].as_bool());
 }
+
+TEST_CASE("is_array_construction recognizes a top-level [ ... ] constructor")
+{
+    CHECK(is_array_construction("[.a]"));
+    CHECK(is_array_construction("[]"));
+    CHECK(is_array_construction("[.a, .b]"));
+    CHECK(is_array_construction("[.[] | .n]"));
+
+    // Indexing and comparisons between constructed arrays are not constructors.
+    CHECK_FALSE(is_array_construction(".a[0]"));
+    CHECK_FALSE(is_array_construction("[.a] == [.b]"));
+    CHECK_FALSE(is_array_construction(".a"));
+}
+
+TEST_CASE("query_pipe constructs arrays with [ ... ]")
+{
+    // A constructor collects the entire inner stream into one array.
+    Value nums = parse_json("[10, 20, 30]");
+    std::vector<Value> all = query_pipe(nums, "[.[]]");
+    REQUIRE(all.size() == 1);
+    CHECK(all[0] == parse_json("[10, 20, 30]"));
+
+    // Top-level commas build a fixed-shape array from several expressions.
+    Value obj = parse_json("{\"a\": 1, \"b\": 2}");
+    std::vector<Value> pair = query_pipe(obj, "[.a, .b]");
+    REQUIRE(pair.size() == 1);
+    CHECK(pair[0] == parse_json("[1, 2]"));
+
+    // An empty constructor yields an empty array.
+    std::vector<Value> empty = query_pipe(obj, "[]");
+    REQUIRE(empty.size() == 1);
+    CHECK(empty[0] == parse_json("[]"));
+
+    // A pipe inside the constructor is evaluated before collecting.
+    Value users = parse_json("{\"users\": [{\"name\": \"anna\"}, {\"name\": \"luca\"}]}");
+    std::vector<Value> names = query_pipe(users, "[.users[] | .name]");
+    REQUIRE(names.size() == 1);
+    CHECK(names[0] == parse_json("[\"anna\", \"luca\"]"));
+
+    // The motivating case: collect a whole stream, then reduce it with add.
+    Value assets = parse_json("{\"assets\": [{\"n\": 1}, {\"n\": 2}, {\"n\": 3}]}");
+    std::vector<Value> total = query_pipe(assets, "[.assets[].n] | add");
+    REQUIRE(total.size() == 1);
+    CHECK(total[0] == Value(6.0));
+}

@@ -141,9 +141,14 @@ namespace jpick
                 current += expr[i + 1];
                 ++i;
             }
-            else if (!in_string && (c == '(' || c == ')'))
+            else if (!in_string && (c == '(' || c == '['))
             {
-                depth += (c == '(') ? 1 : -1;
+                ++depth;
+                current += c;
+            }
+            else if (!in_string && (c == ')' || c == ']'))
+            {
+                --depth;
                 current += c;
             }
             else if (c == '|' && !in_string && depth == 0)
@@ -1249,9 +1254,14 @@ namespace jpick
                 current += segment[i + 1];
                 ++i;
             }
-            else if (!in_string && (c == '(' || c == ')'))
+            else if (!in_string && (c == '(' || c == '['))
             {
-                depth += (c == '(') ? 1 : -1;
+                ++depth;
+                current += c;
+            }
+            else if (!in_string && (c == ')' || c == ']'))
+            {
+                --depth;
                 current += c;
             }
             else if (c == '/' && !in_string && depth == 0 && i + 1 < segment.size() && segment[i + 1] == '/')
@@ -1376,8 +1386,84 @@ namespace jpick
         return Value(!value_less(lhs, rhs)); // ">="
     }
 
+    // Return true if `segment` is a single [ ... ] array constructor, i.e. the
+    // opening '[' at the front is closed only by the final ']' (so `[.a]` is a
+    // constructor but `[.a] == [.b]` and `.a[0]` are not).
+    inline bool is_array_construction(const std::string &segment)
+    {
+        if (segment.size() < 2 || segment.front() != '[')
+            return false;
+        bool in_string = false;
+        int depth = 0;
+        for (std::size_t i = 0; i < segment.size(); ++i)
+        {
+            const char c = segment[i];
+            if (c == '"')
+                in_string = !in_string;
+            else if (c == '\\' && in_string && i + 1 < segment.size())
+                ++i;
+            else if (!in_string && (c == '[' || c == '('))
+                ++depth;
+            else if (!in_string && (c == ']' || c == ')'))
+            {
+                --depth;
+                if (depth == 0)
+                    return i == segment.size() - 1;
+            }
+        }
+        return false;
+    }
+
+    // Split an expression on top-level commas, honoring string literals and
+    // both () and [] nesting, so `[.a, .b]` yields two parts but `[1, 2]`
+    // inside a nested constructor stays intact.
+    inline std::vector<std::string> split_comma(const std::string &expr)
+    {
+        std::vector<std::string> parts;
+        std::string current;
+        bool in_string = false;
+        int depth = 0;
+        for (std::size_t i = 0; i < expr.size(); ++i)
+        {
+            const char c = expr[i];
+            if (c == '"')
+            {
+                in_string = !in_string;
+                current += c;
+            }
+            else if (c == '\\' && in_string && i + 1 < expr.size())
+            {
+                current += c;
+                current += expr[i + 1];
+                ++i;
+            }
+            else if (!in_string && (c == '(' || c == '['))
+            {
+                ++depth;
+                current += c;
+            }
+            else if (!in_string && (c == ')' || c == ']'))
+            {
+                --depth;
+                current += c;
+            }
+            else if (c == ',' && !in_string && depth == 0)
+            {
+                parts.push_back(trim(current));
+                current.clear();
+            }
+            else
+            {
+                current += c;
+            }
+        }
+        parts.push_back(trim(current));
+        return parts;
+    }
+
     // Evaluate a single simple segment (no top-level '|' or '//') against one
-    // value. A top-level comparison (==, !=, <, <=, >, >=) yields a boolean; a
+    // value. `[ ... ]` collects the inner stream into one array; a top-level
+    // comparison (==, !=, <, <=, >, >=) yields a boolean; a
     // segment starting with '"' is a string literal evaluated by interpolate;
     // '@' is a format like @csv; true/false/null/a number is a scalar literal;
     // select(expr) keeps the value when expr is truthy; a plain word may be a
@@ -1385,6 +1471,18 @@ namespace jpick
     // a navigation path.
     inline std::vector<Value> eval_simple(const Value &value, const std::string &segment)
     {
+        if (is_array_construction(segment))
+        {
+            const std::string inner = trim(segment.substr(1, segment.size() - 2));
+            Array out;
+            if (!inner.empty())
+                for (const std::string &part : split_comma(inner))
+                {
+                    std::vector<Value> results = query_pipe(value, part);
+                    out.insert(out.end(), results.begin(), results.end());
+                }
+            return {Value(std::move(out))};
+        }
         if (const auto [pos, op] = find_comparison(segment); pos != std::string::npos)
         {
             const std::string left = trim(segment.substr(0, pos));
