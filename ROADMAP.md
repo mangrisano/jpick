@@ -9,8 +9,9 @@ This document tracks what has shipped and what is being considered next.
 
 > **Design principle:** `jpick` grows by adding **builtins** (named functions),
 > not by adding **grammar** (operators, control flow, variables). Comparison
-> operators are the one deliberate exception, since they make `select`
-> predicates genuinely useful.
+> operators and array construction (`[ ... ]`) are the deliberate exceptions,
+> since they make `select` predicates and stream-to-array reduction genuinely
+> useful.
 
 ## Shipped
 
@@ -21,6 +22,9 @@ This document tracks what has shipped and what is being considered next.
 - **Filtering** with `select(...)` and **transformation** with `map(...)`.
 - **Comparison operators** (`==`, `!=`, `<`, `<=`, `>`, `>=`) following jq's
   total order, composing with `select` and `map`.
+- **Array construction** (`[ ... ]`, with top-level commas) to collect a
+  stream back into a single array, e.g. `[.users[].name]` or
+  `[.assets[].n] | add`.
 - Builtins: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `contains`,
   `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`,
   `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`,

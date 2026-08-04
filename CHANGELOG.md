@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Array construction** `[ ... ]`: collect the entire output stream of the
+  inner expression into a single array (e.g. `[.users[].name]`), with
+  top-level commas building a fixed-shape array (e.g. `[.a, .b]`). This makes
+  stream-to-array reductions like `[.assets[].n] | add` possible, like `jq`.
+
 ## [2.5.1] - 2026-08-04
 
 ### Fixed

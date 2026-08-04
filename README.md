@@ -46,6 +46,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - Provide defaults with the **alternative** operator (`//`): `.price // 0`
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
 - **Transform** each element with `map(...)`: `map(.price) | add`
+- **Construct arrays** with `[ ... ]`: collect a whole stream, e.g. `[.users[].name]`
 - **Compare** values with `==`, `!=`, `<`, `<=`, `>`, `>=`: `.users[] | select(.age >= 18)`
 - Decode embedded JSON with **`fromjson`** (and encode with `@json`)
 - **Builtin functions**: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `contains`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
@@ -70,7 +71,7 @@ The table below summarizes what it has and what it leaves to `jq`.
 | Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                                                                                                                                                                | recursive descent `..`, optional `.a?`                                                |
 | Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                                                                                                                                                                      | `if/then/else`, `try/catch`, `reduce`, `foreach`                                      |
 | Arithmetic & logic    | comparisons `== != < <= > >=` (e.g. `select(.age > 18)`)                                                                                                                                                                                                                                    | `+ - * / %`, `and`/`or`                                                               |
-| Construction          | —                                                                                                                                                                                                                                                                                           | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                     |
+| Construction          | array `[ ... ]`, comma `.a, .b` (e.g. `[.users[].name]`)                                                                                                                                                                                                                                    | object `{a: .x}`                                                                      |
 | Variables & functions | —                                                                                                                                                                                                                                                                                           | `... as $x`, `def`                                                                    |
 | Update / assignment   | —                                                                                                                                                                                                                                                                                           | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                            |
 | Regular expressions   | —                                                                                                                                                                                                                                                                                           | `test`, `match`, `capture`, `scan`, `sub`, `gsub`                                     |
@@ -336,6 +337,30 @@ echo '[{"a":1,"ok":true},{"a":2,"ok":false},{"a":3,"ok":true}]' \
 
 ```text
 [1, 3]
+```
+
+### Construct an array
+
+Wrap an expression in `[ ... ]` to gather its entire output stream into a
+single array — the way to turn many results back into one value, or to feed a
+whole stream to a builtin like `add` (like `jq`):
+
+```bash
+echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '[.users[].name]'
+```
+
+```text
+["anna", "luca"]
+```
+
+Top-level commas build a fixed-shape array, and the result can be piped onward:
+
+```bash
+echo '{"assets":[{"n":1},{"n":2},{"n":3}]}' | jpick '[.assets[].n] | add'
+```
+
+```text
+6
 ```
 
 ### Decode embedded JSON with `fromjson`
@@ -905,6 +930,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `[n]` — index into an array (0-based; out-of-range returns `null`)
 - `[start:end]` — slice an array; bounds optional, negative indices allowed
 - `[]` — iterate over every element of an array (one result per element)
+- `[ ... ]` — construct an array by collecting the inner stream (e.g. `[.users[].name]`)
 - `|` — pipe: feed every result of one stage into the next
 - `//` — alternative: fall back when the left side is `null`, `false`, or missing
 - `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
