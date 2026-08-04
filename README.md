@@ -46,6 +46,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - Provide defaults with the **alternative** operator (`//`): `.price // 0`
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
 - **Transform** each element with `map(...)`: `map(.price) | add`
+- **Compare** values with `==`, `!=`, `<`, `<=`, `>`, `>=`: `.users[] | select(.age >= 18)`
 - Decode embedded JSON with **`fromjson`** (and encode with `@json`)
 - **Builtin functions**: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
@@ -68,7 +69,7 @@ The table below summarizes what it has and what it leaves to `jq`.
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                                                                                                                       | recursive descent `..`, optional `.a?`                                                                                         |
 | Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                                                                                                                             | `if/then/else`, `try/catch`, `reduce`, `foreach`                                                                               |
-| Arithmetic & logic    | —                                                                                                                                                                                                                                                  | `+ - * / %`, `== != < > <= >=`, `and`/`or` (so `select(.age > 18)` is out of scope)                                            |
+| Arithmetic & logic    | comparisons `== != < <= > >=` (e.g. `select(.age > 18)`)                                                                                                                                                                                           | `+ - * / %`, `and`/`or`                                                                                                        |
 | Construction          | —                                                                                                                                                                                                                                                  | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                                                              |
 | Variables & functions | —                                                                                                                                                                                                                                                  | `... as $x`, `def`                                                                                                             |
 | Update / assignment   | —                                                                                                                                                                                                                                                  | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                                                                     |
@@ -302,8 +303,17 @@ anna
 ```
 
 Because a missing field is `null` (falsy), `select` safely skips values that
-lack the field instead of erroring. `jpick` keeps this deliberately small: for
-comparisons like `select(.age > 18)`, reach for `jq`.
+lack the field instead of erroring. The inner expression can also use the
+comparison operators `==`, `!=`, `<`, `<=`, `>` and `>=`:
+
+```bash
+echo '[{"name":"anna","age":30},{"name":"luca","age":16}]' \
+  | jpick -r '.[] | select(.age >= 18) | .name'
+```
+
+```text
+anna
+```
 
 ### Transform with `map`
 
