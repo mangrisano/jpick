@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.1] - 2026-08-04
+
+### Changed
+
+- Internal refactor of the query engine, with no user-facing changes: unified
+  the top-level expression scanners into a single `split_on`, split the large
+  `query.hpp` into focused sub-headers (`query/format.hpp`,
+  `query/builtins.hpp`), and made the string-argument builtins table-driven.
+
 ## [2.7.0] - 2026-08-04
 
 ### Added
@@ -223,7 +232,8 @@ from_entries`), like `jq`.
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.7.0...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.7.1...HEAD
+[2.7.1]: https://github.com/mangrisano/jpick/releases/tag/v2.7.1
 [2.7.0]: https://github.com/mangrisano/jpick/releases/tag/v2.7.0
 [2.6.0]: https://github.com/mangrisano/jpick/releases/tag/v2.6.0
 [2.5.1]: https://github.com/mangrisano/jpick/releases/tag/v2.5.1
