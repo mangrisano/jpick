@@ -5,6 +5,15 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Serializer output is now valid JSON for strings containing control
+  characters: `U+0000`–`U+001F` are escaped (`\b`, `\f` and `\u00XX` for the
+  rest) instead of being emitted raw. UTF-8 bytes are still passed through
+  unescaped.
+
 ## [2.7.1] - 2026-08-04
 
 ### Changed

@@ -32,6 +32,10 @@ TEST_CASE("escape_string translates special characters")
     CHECK(escape_string("a\\b") == "a\\\\b");                // backslash
     CHECK(escape_string("line1\nline2") == "line1\\nline2"); // newline
     CHECK(escape_string("tab\there") == "tab\\there");       // tab
+    CHECK(escape_string(std::string("\b\f")) == "\\b\\f");   // backspace, form feed
+    CHECK(escape_string(std::string("\x01")) == "\\u0001");  // control char -> \u00XX
+    CHECK(escape_string(std::string("\x1f")) == "\\u001f");  // 0x1F is the last one
+    CHECK(escape_string("\xC3\xA9") == "\xC3\xA9");          // UTF-8 bytes pass through
 }
 
 // -----------------------------------------------------------------------------

@@ -44,9 +44,26 @@ namespace jpick
             case '\r':
                 out += "\\r";
                 break;
+            case '\b':
+                out += "\\b";
+                break;
+            case '\f':
+                out += "\\f";
+                break;
             default:
+            {
+                const char *hex = "0123456789abcdef";
+                const unsigned char uc = static_cast<unsigned char>(c);
+                if (uc < 0x20)
+                {
+                    out += "\\u00";
+                    out += hex[uc >> 4];
+                    out += hex[uc & 0x0F];
+                    break;
+                }
                 out += c;
                 break;
+            }
             }
         }
         return out;
