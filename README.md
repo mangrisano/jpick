@@ -972,7 +972,8 @@ All library code lives in the `jpick` namespace.
 
 - Object key order follows the source document; duplicate keys keep the last
   value. Use `-S`/`--sort-keys` to emit keys in ascending order instead.
-- Unicode `\uXXXX` escape sequences are not decoded.
+- Unicode `\uXXXX` escape sequences, including surrogate pairs, are decoded to
+  UTF-8 on input; strings are emitted as UTF-8 (not re-escaped).
 
 ## License
 

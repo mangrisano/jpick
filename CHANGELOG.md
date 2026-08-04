@@ -5,6 +5,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Decode Unicode `\uXXXX` escape sequences (including UTF-16 surrogate pairs)
+  to UTF-8 while lexing strings. Malformed escapes (non-hex digits, too few
+  digits, or unpaired surrogates) are now reported as errors.
+
 ## [2.6.0] - 2026-08-04
 
 ### Added
@@ -30,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`to_entries` / `from_entries`**: convert an object into an array of
   `{"key", "value"}` records and back, so you can filter or reshape an object
   by its keys or values (e.g. `to_entries | map(select(.value > 1)) |
-  from_entries`), like `jq`.
+from_entries`), like `jq`.
 - **`contains(x)`**: deep containment test — substring for strings, recursive
   subset for arrays and objects, equality otherwise; the argument is a JSON
   literal (e.g. `contains({"a":1})`), like `jq`.
