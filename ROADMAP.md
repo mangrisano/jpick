@@ -12,6 +12,13 @@ This document tracks what has shipped and what is being considered next.
 > operators and array construction (`[ ... ]`) are the deliberate exceptions,
 > since they make `select` predicates and stream-to-array reduction genuinely
 > useful.
+>
+> **Litmus test for new grammar:** add it only if it makes an everyday
+> extraction _possible_ rather than merely _less verbose_. If the honest
+> reaction is "at that point I'd just use `jq`", then it belongs to `jq`.
+> `jpick` cannot win on capability against a mature, complete tool; its value
+> is a small, predictable surface you can hold in your head. Every mid-tier
+> feature erodes that without ever matching `jq`.
 
 ## Shipped
 
@@ -55,6 +62,10 @@ intentionally out of scope:
 - A full expression language: boolean logic (`and`/`or`), arithmetic
   (`+ - * /`) and conditionals (`if/then/else`).
 - Assignment, variables, `reduce`, and function definitions.
+- **Object construction** (`{a: .x}`) and other reshaping grammar: you can
+  already reshape with `to_entries`/`from_entries`, so this is convenience, not
+  a missing capability — and it pulls toward `jq`-completeness (computed keys,
+  shorthand, cartesian fan-out).
 
 For those, use [`jq`](https://stedolan.github.io/jq/).
 
