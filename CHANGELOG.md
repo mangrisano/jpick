@@ -5,7 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.6.0] - 2026-08-04
 
 ### Added
 
@@ -215,7 +215,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [doctest](https://github.com/doctest/doctest).
 - `cmake --install` target to place the binary on the `PATH`.
 
-[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.5.1...HEAD
+[Unreleased]: https://github.com/mangrisano/jpick/compare/v2.6.0...HEAD
+[2.6.0]: https://github.com/mangrisano/jpick/releases/tag/v2.6.0
 [2.5.1]: https://github.com/mangrisano/jpick/releases/tag/v2.5.1
 [2.5.0]: https://github.com/mangrisano/jpick/releases/tag/v2.5.0
 [2.4.0]: https://github.com/mangrisano/jpick/releases/tag/v2.4.0
