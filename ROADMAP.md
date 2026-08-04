@@ -21,7 +21,7 @@ This document tracks what has shipped and what is being considered next.
 - **Filtering** with `select(...)` and **transformation** with `map(...)`.
 - **Comparison operators** (`==`, `!=`, `<`, `<=`, `>`, `>=`) following jq's
   total order, composing with `select` and `map`.
-- Builtins: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`,
+- Builtins: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `contains`,
   `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`,
   `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`,
   `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`,

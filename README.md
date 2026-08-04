@@ -48,7 +48,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Transform** each element with `map(...)`: `map(.price) | add`
 - **Compare** values with `==`, `!=`, `<`, `<=`, `>`, `>=`: `.users[] | select(.age >= 18)`
 - Decode embedded JSON with **`fromjson`** (and encode with `@json`)
-- **Builtin functions**: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
+- **Builtin functions**: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `contains`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
 - Build strings with **interpolation**: `"\(.name): \(.count)"`
 - Format output with `@text`, `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`, like `jq`
 - **Compact** or **pretty-printed** output, with configurable indentation (`--indent`, `--tab`)
@@ -65,20 +65,20 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 focused extractor and light transformer, **not** a full programming language.
 The table below summarizes what it has and what it leaves to `jq`.
 
-| Area                  | In `jpick`                                                                                                                                                                                                                                                                      | Not in `jpick` (use `jq`)                                                                         |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                                                                                                                                                    | recursive descent `..`, optional `.a?`                                                            |
-| Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                                                                                                                                                          | `if/then/else`, `try/catch`, `reduce`, `foreach`                                                  |
-| Arithmetic & logic    | comparisons `== != < <= > >=` (e.g. `select(.age > 18)`)                                                                                                                                                                                                                        | `+ - * / %`, `and`/`or`                                                                           |
-| Construction          | —                                                                                                                                                                                                                                                                               | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                                 |
-| Variables & functions | —                                                                                                                                                                                                                                                                               | `... as $x`, `def`                                                                                |
-| Update / assignment   | —                                                                                                                                                                                                                                                                               | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                                        |
-| Regular expressions   | —                                                                                                                                                                                                                                                                               | `test`, `match`, `capture`, `scan`, `sub`, `gsub`                                                 |
-| Builtins              | `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `to_entries`/`from_entries`, `ascii_downcase`/`upcase`, `ltrimstr`/`rtrimstr`, `startswith`/`endswith` | `sort_by`, `group_by`, `unique_by`, `flatten`, `range`, `contains`, `walk`, math & date functions |
-| Strings               | interpolation `"\(...)"` (exactly one value)                                                                                                                                                                                                                                    | regex-based string ops (see above)                                                                |
-| Formats               | `@text`, `@json`, `@base64`/`@base64d`, `@base32`/`@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`                                                                                                                                                                            | —                                                                                                 |
-| Output                | **compact by default**, `--pretty`, `--indent`/`--tab`, `-S`/`--sort-keys`, `-r`/`--raw-output`                                                                                                                                                                                 | pretty-printed by default                                                                         |
-| Input                 | stdin or file, NDJSON stream, `-s`/`--slurp`, `-R`/`--raw-input`                                                                                                                                                                                                                | `input`/`inputs`, `env`/`$ENV`, `--arg`/`--argjson`/`--stream`                                    |
+| Area                  | In `jpick`                                                                                                                                                                                                                                                                                  | Not in `jpick` (use `jq`)                                                             |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                                                                                                                                                                | recursive descent `..`, optional `.a?`                                                |
+| Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                                                                                                                                                                      | `if/then/else`, `try/catch`, `reduce`, `foreach`                                      |
+| Arithmetic & logic    | comparisons `== != < <= > >=` (e.g. `select(.age > 18)`)                                                                                                                                                                                                                                    | `+ - * / %`, `and`/`or`                                                               |
+| Construction          | —                                                                                                                                                                                                                                                                                           | object `{a: .x}`, array `[ ... ]`, comma `.a, .b`                                     |
+| Variables & functions | —                                                                                                                                                                                                                                                                                           | `... as $x`, `def`                                                                    |
+| Update / assignment   | —                                                                                                                                                                                                                                                                                           | `=`, `\|=`, `+=`, `del(...)`, `getpath`/`setpath`, `paths`                            |
+| Regular expressions   | —                                                                                                                                                                                                                                                                                           | `test`, `match`, `capture`, `scan`, `sub`, `gsub`                                     |
+| Builtins              | `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `to_entries`/`from_entries`, `contains`, `ascii_downcase`/`upcase`, `ltrimstr`/`rtrimstr`, `startswith`/`endswith` | `sort_by`, `group_by`, `unique_by`, `flatten`, `range`, `walk`, math & date functions |
+| Strings               | interpolation `"\(...)"` (exactly one value)                                                                                                                                                                                                                                                | regex-based string ops (see above)                                                    |
+| Formats               | `@text`, `@json`, `@base64`/`@base64d`, `@base32`/`@base32d`, `@uri`, `@html`, `@sh`, `@csv`, `@tsv`                                                                                                                                                                                        | —                                                                                     |
+| Output                | **compact by default**, `--pretty`, `--indent`/`--tab`, `-S`/`--sort-keys`, `-r`/`--raw-output`                                                                                                                                                                                             | pretty-printed by default                                                             |
+| Input                 | stdin or file, NDJSON stream, `-s`/`--slurp`, `-R`/`--raw-input`                                                                                                                                                                                                                            | `input`/`inputs`, `env`/`$ENV`, `--arg`/`--argjson`/`--stream`                        |
 
 ## Install
 
@@ -798,6 +798,21 @@ echo '{"a":1,"b":2,"c":3}' | jpick 'to_entries | map(select(.value > 1)) | from_
 {"b": 2, "c": 3}
 ```
 
+### Builtins: `contains`
+
+`contains(x)` tests deep containment, like `jq`: a string contains a substring,
+an array contains another when each of its elements is contained somewhere, and
+an object contains another when every key matches recursively. The argument `x`
+is a JSON literal:
+
+```bash
+echo '["apple","banana","grape"]' | jpick 'map(select(contains("ap")))'
+```
+
+```text
+["apple", "grape"]
+```
+
 ### Format with `@`
 
 A pipe stage starting with `@` formats each value. `@csv`/`@tsv` take an array
@@ -899,6 +914,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `tonumber`, `tostring`, `ascii_downcase`, `ascii_upcase` — conversion/case builtins
 - `fromjson` — parse a JSON string into a value (inverse of `@json`)
 - `to_entries`, `from_entries` — convert between an object and an array of `{key, value}` entries
+- `contains(x)` — deep containment: substring, subarray, or object subset (`x` is a JSON literal)
 - `select(expr)` — keep the value when `expr` is truthy, drop it otherwise
 - `map(expr)` — apply `expr` to every array element, collecting the results
 - `"..."` — a string literal; `\(...)` interpolates the value of an inner path
