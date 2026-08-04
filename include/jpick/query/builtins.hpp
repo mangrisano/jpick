@@ -580,8 +580,8 @@ namespace jpick
 
     // Table of unary builtins with signature Value(const Value&). A pipe
     // segment matching one of these names is applied to every value in the
-    // stream. Builtins that don't fit this shape (empty, has, join, split,
-    // ltrimstr, rtrimstr) stay special-cased in query_pipe.
+    // stream. Builtins that take a string argument live in
+    // string_arg_builtins(); `empty` stays special-cased in eval_simple.
     inline const std::map<std::string, Value (*)(const Value &)> &unary_builtins()
     {
         static const std::map<std::string, Value (*)(const Value &)> table = {
@@ -604,6 +604,24 @@ namespace jpick
             {"fromjson", builtin_fromjson},
             {"ascii_downcase", builtin_ascii_downcase},
             {"ascii_upcase", builtin_ascii_upcase},
+        };
+        return table;
+    }
+
+    // Table of builtins of the form name("arg") that take one string argument,
+    // signature Value(const Value&, const std::string&). Looked up by name in
+    // eval_simple, mirroring unary_builtins for the no-argument ones.
+    inline const std::map<std::string, Value (*)(const Value &, const std::string &)> &
+    string_arg_builtins()
+    {
+        static const std::map<std::string, Value (*)(const Value &, const std::string &)> table = {
+            {"has", builtin_has},
+            {"join", builtin_join},
+            {"split", builtin_split},
+            {"ltrimstr", builtin_ltrimstr},
+            {"rtrimstr", builtin_rtrimstr},
+            {"startswith", builtin_startswith},
+            {"endswith", builtin_endswith},
         };
         return table;
     }

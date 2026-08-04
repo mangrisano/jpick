@@ -537,26 +537,20 @@ namespace jpick
             }
             return {Value(std::move(out))};
         }
-        if (segment.rfind("has(", 0) == 0)
-            return {builtin_has(value, parse_string_arg(segment, "has"))};
         if (segment.rfind("contains(", 0) == 0)
         {
             std::vector<Token> tokens = tokenize(parse_call_arg(segment, "contains"));
             Parser parser(tokens);
             return {Value(value_contains(value, parser.parse()))};
         }
-        if (segment.rfind("join(", 0) == 0)
-            return {builtin_join(value, parse_string_arg(segment, "join"))};
-        if (segment.rfind("split(", 0) == 0)
-            return {builtin_split(value, parse_string_arg(segment, "split"))};
-        if (segment.rfind("ltrimstr(", 0) == 0)
-            return {builtin_ltrimstr(value, parse_string_arg(segment, "ltrimstr"))};
-        if (segment.rfind("rtrimstr(", 0) == 0)
-            return {builtin_rtrimstr(value, parse_string_arg(segment, "rtrimstr"))};
-        if (segment.rfind("startswith(", 0) == 0)
-            return {builtin_startswith(value, parse_string_arg(segment, "startswith"))};
-        if (segment.rfind("endswith(", 0) == 0)
-            return {builtin_endswith(value, parse_string_arg(segment, "endswith"))};
+        // Builtins of the form name("arg") taking a single string argument.
+        if (const std::size_t paren = segment.find('(');
+            paren != std::string::npos && segment.back() == ')')
+        {
+            const std::string name = segment.substr(0, paren);
+            if (auto it = string_arg_builtins().find(name); it != string_arg_builtins().end())
+                return {it->second(value, parse_string_arg(segment, name))};
+        }
         return query_path(value, split_path(segment));
     }
 
