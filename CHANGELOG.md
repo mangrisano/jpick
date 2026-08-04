@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`to_entries` / `from_entries`**: convert an object into an array of
+  `{"key", "value"}` records and back, so you can filter or reshape an object
+  by its keys or values (e.g. `to_entries | map(select(.value > 1)) |
+  from_entries`), like `jq`.
+
 ## [2.4.0] - 2026-08-04
 
 ### Added

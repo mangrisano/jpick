@@ -7,6 +7,11 @@ full expression language.
 
 This document tracks what has shipped and what is being considered next.
 
+> **Design principle:** `jpick` grows by adding **builtins** (named functions),
+> not by adding **grammar** (operators, control flow, variables). Comparison
+> operators are the one deliberate exception, since they make `select`
+> predicates genuinely useful.
+
 ## Shipped
 
 - JSON **lexer**, recursive-descent **parser** and `std::variant` data model.
@@ -14,10 +19,13 @@ This document tracks what has shipped and what is being considered next.
   **iteration** (`[]`).
 - **Pipe** (`|`) and **alternative** (`//`) operators.
 - **Filtering** with `select(...)` and **transformation** with `map(...)`.
-- Builtins: `length`, `keys`, `type`, `has`, `not`, `empty`, `add`, `sort`,
-  `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`,
-  `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`,
-  `ltrimstr`, `rtrimstr`, `startswith`, `endswith`.
+- **Comparison operators** (`==`, `!=`, `<`, `<=`, `>`, `>=`) following jq's
+  total order, composing with `select` and `map`.
+- Builtins: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`,
+  `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`,
+  `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`,
+  `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`,
+  `endswith`.
 - String **interpolation** (`"\(.name)"`) and `@` formats (`@csv`, `@tsv`,
   `@json`, `@base64`, `@base64d`, `@base32`, `@base32d`, `@uri`, `@html`,
   `@sh`).
@@ -40,8 +48,8 @@ This document tracks what has shipped and what is being considered next.
 To stay a **lite** alternative rather than a second `jq`, the following are
 intentionally out of scope:
 
-- A full expression language: infix comparisons (`==`, `<`, `>`), boolean logic
-  (`and`/`or`), arithmetic and conditionals (`if/then/else`).
+- A full expression language: boolean logic (`and`/`or`), arithmetic
+  (`+ - * /`) and conditionals (`if/then/else`).
 - Assignment, variables, `reduce`, and function definitions.
 
 For those, use [`jq`](https://stedolan.github.io/jq/).
