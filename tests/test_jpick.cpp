@@ -641,6 +641,41 @@ TEST_CASE("query_pipe recognizes builtin functions")
     CHECK(t[0].as_string() == "object");
 }
 
+TEST_CASE("builtin_to_entries and builtin_from_entries convert objects")
+{
+    // to_entries: object -> array of {key, value}, in insertion order.
+    CHECK(builtin_to_entries(parse_json("{\"a\":1,\"b\":2}")) ==
+          parse_json("[{\"key\":\"a\",\"value\":1},{\"key\":\"b\",\"value\":2}]"));
+
+    // from_entries: array of entries -> object.
+    CHECK(builtin_from_entries(parse_json("[{\"key\":\"a\",\"value\":1},{\"key\":\"b\",\"value\":2}]")) ==
+          parse_json("{\"a\":1,\"b\":2}"));
+
+    // from_entries accepts the short field names and a missing value is null.
+    CHECK(builtin_from_entries(parse_json("[{\"k\":\"a\",\"v\":1},{\"name\":\"b\"}]")) ==
+          parse_json("{\"a\":1,\"b\":null}"));
+
+    // A non-string key is rendered as its JSON form; later entries win.
+    CHECK(builtin_from_entries(parse_json("[{\"key\":1,\"value\":\"x\"},{\"key\":1,\"value\":\"y\"}]")) ==
+          parse_json("{\"1\":\"y\"}"));
+
+    // to_entries requires an object; from_entries requires an array.
+    CHECK_THROWS_AS(builtin_to_entries(parse_json("[1,2]")), std::exception);
+    CHECK_THROWS_AS(builtin_from_entries(parse_json("{}")), std::exception);
+}
+
+TEST_CASE("query_pipe round-trips through to_entries and from_entries")
+{
+    Value v = parse_json("{\"a\":1,\"b\":2}");
+
+    // Round-trip: to_entries | from_entries yields the original object.
+    CHECK(query_pipe(v, "to_entries | from_entries")[0] == v);
+
+    // to_entries pairs with map/select to filter an object by value.
+    CHECK(query_pipe(v, "to_entries | map(select(.value > 1)) | from_entries")[0] ==
+          parse_json("{\"b\":2}"));
+}
+
 // -----------------------------------------------------------------------------
 // Builtin functions: not, empty, has
 // -----------------------------------------------------------------------------

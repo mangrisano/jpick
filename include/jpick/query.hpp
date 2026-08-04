@@ -655,6 +655,80 @@ namespace jpick
         throw std::runtime_error("keys only works on objects and arrays");
     }
 
+    // Forward declaration: from_entries reuses jq's truthiness for key lookup.
+    inline bool is_truthy(const Value &value);
+
+    // Find the value of `name` in an entry object, or nullptr when absent.
+    inline const Value *find_entry_field(const Object &entry, const std::string &name)
+    {
+        for (const auto &[k, v] : entry)
+            if (k == name)
+                return &v;
+        return nullptr;
+    }
+
+    // Convert an object into an array of {"key":k, "value":v} entries,
+    // preserving insertion order (the inverse of from_entries). Non-objects
+    // throw.
+    inline Value builtin_to_entries(const Value &value)
+    {
+        const Object &obj = value.as_object();
+        Array out;
+        out.reserve(obj.size());
+        for (const auto &[k, v] : obj)
+        {
+            Object entry;
+            entry.emplace_back("key", Value(k));
+            entry.emplace_back("value", v);
+            out.push_back(Value(std::move(entry)));
+        }
+        return Value(std::move(out));
+    }
+
+    // Rebuild an object from an array of entries (the inverse of to_entries).
+    // The key is the first truthy of key/k/name/Name/K/Key and the value the
+    // first present of value/v/Value/V (missing yields null); a non-string key
+    // is rendered as its JSON form and later entries win.
+    inline Value builtin_from_entries(const Value &value)
+    {
+        const Array &arr = value.as_array();
+        Object out;
+        for (const Value &item : arr)
+        {
+            const Object &entry = item.as_object();
+
+            Value key_value(nullptr);
+            for (const char *name : {"key", "k", "name", "Name", "K", "Key"})
+                if (const Value *found = find_entry_field(entry, name); found && is_truthy(*found))
+                {
+                    key_value = *found;
+                    break;
+                }
+            const std::string key =
+                key_value.is_string() ? key_value.as_string() : serialize(key_value);
+
+            Value entry_value(nullptr);
+            for (const char *name : {"value", "v", "Value", "V"})
+                if (const Value *found = find_entry_field(entry, name))
+                {
+                    entry_value = *found;
+                    break;
+                }
+
+            bool replaced = false;
+            for (auto &pair : out)
+                if (pair.first == key)
+                {
+                    pair.second = entry_value;
+                    replaced = true;
+                    break;
+                }
+            if (!replaced)
+                out.emplace_back(key, entry_value);
+        }
+        return Value(std::move(out));
+    }
+
     // Return the type of a value as a string.
     inline Value builtin_type(const Value &value)
     {
@@ -1070,6 +1144,8 @@ namespace jpick
         static const std::map<std::string, Value (*)(const Value &)> table = {
             {"length", builtin_length},
             {"keys", builtin_keys},
+            {"to_entries", builtin_to_entries},
+            {"from_entries", builtin_from_entries},
             {"type", builtin_type},
             {"not", builtin_not},
             {"add", builtin_add},
