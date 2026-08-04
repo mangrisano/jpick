@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785862308628,
+  "lastUpdate": 1785866568325,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -545,6 +545,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 420.017,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "67dca8272982dae5a4aaeb24901e6f5d9d706569",
+          "message": "refactor(query): unify scanners and split into sub-headers\n\nIntroduce a single split_on() scanner that centralizes the string- and\nparen-aware top-level splitting; split_pipe, split_alternative and\nsplit_comma become thin wrappers over it, removing duplicated loops that\nwere the source of past inconsistencies.\n\nSplit the 1600-line query.hpp into cohesive sub-headers included from an\numbrella query.hpp: query/format.hpp (output @-formats and raw_value) and\nquery/builtins.hpp (the builtin functions and the jq value ordering). No\nbehavior change.",
+          "timestamp": "2026-08-04T20:01:34+02:00",
+          "tree_id": "195e048a16c23afa369114f81b8432a0509bf8f0",
+          "url": "https://github.com/mangrisano/jpick/commit/67dca8272982dae5a4aaeb24901e6f5d9d706569"
+        },
+        "date": 1785866567523,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 516.457,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 524.915,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 409.687,
             "unit": "ms"
           }
         ]
