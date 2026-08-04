@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1785857603619,
+  "lastUpdate": 1785861789630,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -467,6 +467,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 412.807,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "343bede8089c1a1bf493c6363d4e19caa463d555",
+          "message": "docs: record object construction as a non-goal\n\nAdd a litmus test for new grammar (add it only if it makes an everyday\nextraction possible, not merely less verbose) and list object\nconstruction {a: .x} as intentionally out of scope.",
+          "timestamp": "2026-08-04T18:42:09+02:00",
+          "tree_id": "3756093ac5c046c927113331ee22377dc0b853cf",
+          "url": "https://github.com/mangrisano/jpick/commit/343bede8089c1a1bf493c6363d4e19caa463d555"
+        },
+        "date": 1785861788840,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 471.589,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 495.804,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 386.453,
             "unit": "ms"
           }
         ]
