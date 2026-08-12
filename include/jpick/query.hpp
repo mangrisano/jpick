@@ -133,7 +133,7 @@ namespace jpick
             end += len;
         start = std::max(0, std::min(start, len));
         end = std::max(0, std::min(end, len));
-        return { start, end };
+        return {start, end};
     }
 
     // Remove leading and trailing whitespace from a string.
@@ -496,6 +496,32 @@ namespace jpick
         return false;
     }
 
+    inline bool is_group(const std::string &segment)
+    {
+        if ((segment.size() < 2) || (segment[0] != '('))
+            return false;
+        bool in_string = false;
+        int depth = 0;
+        size_t ss = segment.size();
+        for (size_t i = 0; i < ss; ++i)
+        {
+            char c = segment[i];
+            if (c == '"')
+                in_string = !in_string;
+            else if ((c == '\\') && in_string && i + 1 < ss)
+                ++i;
+            else if (!in_string && (c == '(' || c == '['))
+                ++depth;
+            else if (!in_string && (c == ')' || c == ']'))
+            {
+                --depth;
+                if (depth == 0)
+                    return i == ss - 1;
+            }
+        }
+        return false;
+    }
+
     // Split an expression on top-level commas, honoring string literals and
     // both () and [] nesting, so `[.a, .b]` yields two parts but `[1, 2]`
     // inside a nested constructor stays intact.
@@ -515,6 +541,11 @@ namespace jpick
     // a navigation path.
     inline std::vector<Value> eval_simple(const Value &value, const std::string &segment)
     {
+        if (is_group(segment))
+        {
+            const std::string inner = trim(segment.substr(1, segment.size() - 2));
+            return query_pipe(value, inner);
+        }
         if (is_array_construction(segment))
         {
             const std::string inner = trim(segment.substr(1, segment.size() - 2));
@@ -583,54 +614,60 @@ namespace jpick
         return query_path(value, split_path(segment));
     }
 
-    // Evaluate a full pipe expression: each '|'-separated segment is applied to
-    // every value produced by the previous one, flattening the results into one
-    // stream. Within a segment, the alternative operator '//' picks the first
-    // alternative that yields a value other than null or false, otherwise it
-    // falls back to the last alternative (errors in earlier alternatives are
-    // ignored, like jq).
+    // Evaluate one comma-part of a pipe stage against a single value, honoring
+    // the alternative operator '//': pick the first alternative that yields a
+    // value other than null or false, otherwise fall back to the last
+    // alternative (errors in earlier alternatives are ignored, like jq).
+    inline std::vector<Value> eval_alternatives(const Value &value, const std::string &segment)
+    {
+        const std::vector<std::string> alternatives = split_alternative(segment);
+        if (alternatives.size() == 1)
+            return eval_simple(value, segment);
+
+        for (std::size_t i = 0; i < alternatives.size(); ++i)
+        {
+            const bool last = (i + 1 == alternatives.size());
+            std::vector<Value> results;
+            try
+            {
+                results = eval_simple(value, alternatives[i]);
+            }
+            catch (const std::exception &)
+            {
+                if (last)
+                    throw; // an error in the final fallback still surfaces
+                continue;  // skip a failing earlier alternative
+            }
+            std::vector<Value> present;
+            for (const Value &v : results)
+                if (is_truthy(v))
+                    present.push_back(v);
+            if (!present.empty())
+                return present;
+            if (last) // nothing present anywhere: yield the fallback as-is
+                return results;
+        }
+        return {};
+    }
+
+    // Evaluate a full pipe expression. Precedence follows jq: '|' is split
+    // first, then top-level commas within a stage, then the alternative '//'.
+    // Each stage is applied to every value the previous one produced, and a
+    // top-level comma fans a value out into several results (e.g. `.a, .b`),
+    // flattening everything into one stream.
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
     {
         std::vector<Value> stream = {root};
         for (const std::string &segment : split_pipe(expr))
         {
-            const std::vector<std::string> alternatives = split_alternative(segment);
+            const std::vector<std::string> parts = split_comma(segment);
             std::vector<Value> next;
             for (const Value &value : stream)
-            {
-                if (alternatives.size() == 1)
+                for (const std::string &part : parts)
                 {
-                    std::vector<Value> results = eval_simple(value, segment);
+                    std::vector<Value> results = eval_alternatives(value, part);
                     next.insert(next.end(), results.begin(), results.end());
-                    continue;
                 }
-                for (std::size_t i = 0; i < alternatives.size(); ++i)
-                {
-                    const bool last = (i + 1 == alternatives.size());
-                    std::vector<Value> results;
-                    try
-                    {
-                        results = eval_simple(value, alternatives[i]);
-                    }
-                    catch (const std::exception &)
-                    {
-                        if (last)
-                            throw; // an error in the final fallback still surfaces
-                        continue;  // skip a failing earlier alternative
-                    }
-                    std::vector<Value> present;
-                    for (const Value &v : results)
-                        if (is_truthy(v))
-                            present.push_back(v);
-                    if (!present.empty())
-                    {
-                        next.insert(next.end(), present.begin(), present.end());
-                        break;
-                    }
-                    if (last) // nothing present anywhere: yield the fallback as-is
-                        next.insert(next.end(), results.begin(), results.end());
-                }
-            }
             stream = std::move(next);
         }
         return stream;

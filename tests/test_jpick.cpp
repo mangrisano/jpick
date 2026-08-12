@@ -1206,3 +1206,89 @@ TEST_CASE("query_pipe constructs arrays with [ ... ]")
     REQUIRE(total.size() == 1);
     CHECK(total[0] == Value(6.0));
 }
+
+TEST_CASE("is_group recognizes a top-level ( ... ) group")
+{
+    CHECK(is_group("(.a)"));
+    CHECK(is_group("(.b[] | .x)"));
+    CHECK(is_group("((.a))"));
+    CHECK(is_group("(.users[0])"));
+
+    // A ')' inside a string literal does not close the group early.
+    CHECK(is_group("(\"x)\")"));
+
+    // A group whose opening '(' is closed before the final char is not a group.
+    CHECK_FALSE(is_group("(.a) == (.b)"));
+    CHECK_FALSE(is_group("(.a).b"));
+
+    // Paths, indices and non-parenthesized segments are not groups.
+    CHECK_FALSE(is_group(".a"));
+    CHECK_FALSE(is_group(".a[0]"));
+}
+
+TEST_CASE("query_pipe evaluates ( ... ) groups")
+{
+    Value obj = parse_json("{\"a\": 1, \"b\": [{\"x\": 2}, {\"x\": 3}]}");
+
+    // A group is transparent: it yields exactly what its inner expression does.
+    std::vector<Value> a = query_pipe(obj, "(.a)");
+    REQUIRE(a.size() == 1);
+    CHECK(a[0] == Value(1.0));
+
+    // Nested groups collapse to the same result.
+    std::vector<Value> nested = query_pipe(obj, "((.a))");
+    REQUIRE(nested.size() == 1);
+    CHECK(nested[0] == Value(1.0));
+
+    // A group preserves a multi-value stream produced by a pipe inside it.
+    std::vector<Value> xs = query_pipe(obj, "(.b[] | .x)");
+    REQUIRE(xs.size() == 2);
+    CHECK(xs[0] == Value(2.0));
+    CHECK(xs[1] == Value(3.0));
+
+    // A group can be one element of an array constructor.
+    std::vector<Value> collected = query_pipe(obj, "[(.b[] | .x)]");
+    REQUIRE(collected.size() == 1);
+    CHECK(collected[0] == parse_json("[2, 3]"));
+
+    // Grouping does not interfere with a following comparison.
+    std::vector<Value> cmp = query_pipe(obj, "(.a) == 1");
+    REQUIRE(cmp.size() == 1);
+    CHECK(cmp[0].as_bool());
+
+    // The motivating case: a group with interpolation as one part of a
+    // constructor, mixing a plain field and an iterated stream.
+    Value doc = parse_json("{\"a\": 1, \"b\": [{\"x\": 2}]}");
+    std::vector<Value> mixed = query_pipe(doc, "[\"a=\\(.a)\", (.b[] | \"x=\\(.x)\")]");
+    REQUIRE(mixed.size() == 1);
+    CHECK(mixed[0] == parse_json("[\"a=1\", \"x=2\"]"));
+}
+
+TEST_CASE("query_pipe evaluates a top-level comma as a stream")
+{
+    Value obj = parse_json("{\"a\": 1, \"b\": [10, 20]}");
+
+    // A bare comma fans one value out into several results.
+    std::vector<Value> two = query_pipe(obj, ".a, .b");
+    REQUIRE(two.size() == 2);
+    CHECK(two[0] == Value(1.0));
+    CHECK(two[1] == parse_json("[10, 20]"));
+
+    // A plain string literal can be one comma-part.
+    std::vector<Value> mixed = query_pipe(obj, "\"plain\", .a");
+    REQUIRE(mixed.size() == 2);
+    CHECK(mixed[0].as_string() == "plain");
+    CHECK(mixed[1] == Value(1.0));
+
+    // Pipe binds looser than comma: `.a, .b | .c` pipes the whole stream.
+    std::vector<Value> piped =
+        query_pipe(parse_json("{\"a\": {\"c\": 1}, \"b\": {\"c\": 2}}"), ".a, .b | .c");
+    REQUIRE(piped.size() == 2);
+    CHECK(piped[0] == Value(1.0));
+    CHECK(piped[1] == Value(2.0));
+
+    // A comma inside a constructor is not a top-level comma.
+    std::vector<Value> arr = query_pipe(obj, "[.a, .b]");
+    REQUIRE(arr.size() == 1);
+    CHECK(arr[0] == parse_json("[1, [10, 20]]"));
+}
