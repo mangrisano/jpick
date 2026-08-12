@@ -41,7 +41,7 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 
 - Hand-written JSON **lexer** and **recursive-descent parser**
 - **jq-compatible** behavior: missing fields and out-of-range indices return `null` instead of an error
-- Query values with a path expression: object keys, **array indices**, **slices** (`[1:3]`), and **iteration** (`[]`)
+- Query values with a path expression: object keys, **array indices**, **slices** (`[1:3]`, on arrays and strings), and **iteration** (`[]`)
 - Compose queries with the **pipe** operator (`|`)
 - Provide defaults with the **alternative** operator (`//`): `.price // 0`
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
@@ -228,7 +228,7 @@ echo '{"users":[{"name":"anna"},{"name":"luca"}]}' | jpick '.users[].name'
 "luca"
 ```
 
-### Slice an array
+### Slice an array or string
 
 `[start:end]` extracts a sub-array (like `jq`). Both bounds are optional and
 negative indices count from the end. Out-of-range bounds are clamped:
@@ -247,6 +247,17 @@ echo '[0,1,2,3,4]' | jpick '.[-2:]'
 
 ```text
 [3, 4]
+```
+
+The same syntax slices strings, counting by Unicode code point so multibyte
+characters are never split:
+
+```bash
+echo '"abcdefghi"' | jpick '.[2:4]'
+```
+
+```text
+"cd"
 ```
 
 ### Pipe
@@ -928,7 +939,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 
 - `.key` — descend into an object by key (missing keys return `null`)
 - `[n]` — index into an array (0-based; out-of-range returns `null`)
-- `[start:end]` — slice an array; bounds optional, negative indices allowed
+- `[start:end]` — slice an array or string (strings by Unicode code point); bounds optional, negative indices allowed
 - `[]` — iterate over every element of an array (one result per element)
 - `[ ... ]` — construct an array by collecting the inner stream (e.g. `[.users[].name]`)
 - `|` — pipe: feed every result of one stage into the next
