@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Group sub-expressions with parentheses `( ... )`. A parenthesized expression
+  is evaluated as a unit, so a whole pipe can be used as one element of an
+  array constructor (e.g. `[.a, (.b[] | .x)]`) or its result piped onward.
+  Previously `( ... )` was silently mis-parsed and returned `null`.
+- Top-level comma operator: `.a, .b` now emits a stream of several results from
+  one input (like `jq`), following jq precedence (`|` looser than `,`). Before,
+  a bare comma was mis-parsed and returned `null`.
+
 ## [2.8.0] - 2026-08-12
 
 ### Added

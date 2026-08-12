@@ -47,6 +47,8 @@ engine, and a serializer — the querying essentials of `jq`, without the runtim
 - **Filter** a stream with `select(...)`: `.users[] | select(.active)`
 - **Transform** each element with `map(...)`: `map(.price) | add`
 - **Construct arrays** with `[ ... ]`: collect a whole stream, e.g. `[.users[].name]`
+- **Group** sub-expressions with `( ... )`, e.g. `[.a, (.b[] | .x)]`
+- **Emit several values** with a top-level comma: `.name, .email`
 - **Compare** values with `==`, `!=`, `<`, `<=`, `>`, `>=`: `.users[] | select(.age >= 18)`
 - Decode embedded JSON with **`fromjson`** (and encode with `@json`)
 - **Builtin functions**: `length`, `keys`, `to_entries`, `from_entries`, `type`, `has`, `contains`, `not`, `empty`, `add`, `sort`, `unique`, `reverse`, `min`, `max`, `first`, `last`, `join`, `split`, `tonumber`, `tostring`, `fromjson`, `ascii_downcase`, `ascii_upcase`, `ltrimstr`, `rtrimstr`, `startswith`, `endswith` (jq-compatible)
@@ -69,7 +71,7 @@ The table below summarizes what it has and what it leaves to `jq`.
 | Area                  | In `jpick`                                                                                                                                                                                                                                                                                  | Not in `jpick` (use `jq`)                                                             |
 | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | Navigation            | `.key`, `[n]`, `[a:b]`, `[]`                                                                                                                                                                                                                                                                | recursive descent `..`, optional `.a?`                                                |
-| Composition & flow    | pipe `\|`, alternative `//`, `select(...)`, `map(...)`                                                                                                                                                                                                                                      | `if/then/else`, `try/catch`, `reduce`, `foreach`                                      |
+| Composition & flow    | pipe `\|`, alternative `//`, grouping `( ... )`, `select(...)`, `map(...)`                                                                                                                                                                                                                  | `if/then/else`, `try/catch`, `reduce`, `foreach`                                      |
 | Arithmetic & logic    | comparisons `== != < <= > >=` (e.g. `select(.age > 18)`)                                                                                                                                                                                                                                    | `+ - * / %`, `and`/`or`                                                               |
 | Construction          | array `[ ... ]`, comma `.a, .b` (e.g. `[.users[].name]`)                                                                                                                                                                                                                                    | object `{a: .x}`                                                                      |
 | Variables & functions | —                                                                                                                                                                                                                                                                                           | `... as $x`, `def`                                                                    |
@@ -350,6 +352,20 @@ echo '[{"a":1,"ok":true},{"a":2,"ok":false},{"a":3,"ok":true}]' \
 [1, 3]
 ```
 
+### Emit several values with `,`
+
+A top-level comma produces a stream of several results from one input — handy to
+pull a few fields at once, or to pipe them all through the same stage:
+
+```bash
+echo '{"name":"anna","email":"anna@example.com"}' | jpick -r '.name, .email'
+```
+
+```text
+anna
+anna@example.com
+```
+
 ### Construct an array
 
 Wrap an expression in `[ ... ]` to gather its entire output stream into a
@@ -372,6 +388,19 @@ echo '{"assets":[{"n":1},{"n":2},{"n":3}]}' | jpick '[.assets[].n] | add'
 
 ```text
 6
+```
+
+### Group with `( ... )`
+
+Wrap a sub-expression in parentheses to treat it as a single unit — for example
+to place a whole pipe as one element of an array constructor:
+
+```bash
+echo '{"a":1,"b":[{"x":2},{"x":3}]}' | jpick '[.a, (.b[] | .x)]'
+```
+
+```text
+[1, 2, 3]
 ```
 
 ### Decode embedded JSON with `fromjson`
@@ -942,6 +971,7 @@ returns `null`, like `jq` (see [Missing fields](#missing-fields-return-null)).
 - `[start:end]` — slice an array or string (strings by Unicode code point); bounds optional, negative indices allowed
 - `[]` — iterate over every element of an array (one result per element)
 - `[ ... ]` — construct an array by collecting the inner stream (e.g. `[.users[].name]`)
+- `( ... )` — group a sub-expression, e.g. to use a whole pipe as one element of `[ ... ]`
 - `|` — pipe: feed every result of one stage into the next
 - `//` — alternative: fall back when the left side is `null`, `false`, or missing
 - `length`, `keys`, `type`, `has("key")`, `not`, `empty` — builtin functions
