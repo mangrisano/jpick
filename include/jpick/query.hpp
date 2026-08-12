@@ -108,6 +108,34 @@ namespace jpick
         return steps;
     }
 
+    inline bool is_utf8_continuation(unsigned char b)
+    {
+        return (b & 0xC0) == 0x80;
+    }
+
+    inline std::vector<std::size_t> utf_offsets(const std::string &s)
+    {
+        std::vector<std::size_t> offsets;
+        for (size_t i = 0; i < s.size(); ++i)
+            if (!is_utf8_continuation(s[i]))
+                offsets.push_back(i);
+        offsets.push_back(s.size());
+        return offsets;
+    }
+
+    inline std::pair<int, int> normalize_slice(const Slice &s, int len)
+    {
+        int start = s.has_start ? s.start : 0;
+        int end = s.has_end ? s.end : len;
+        if (start < 0)
+            start += len;
+        if (end < 0)
+            end += len;
+        start = std::max(0, std::min(start, len));
+        end = std::max(0, std::min(end, len));
+        return { start, end };
+    }
+
     // Remove leading and trailing whitespace from a string.
     inline std::string trim(const std::string &s)
     {
@@ -203,29 +231,30 @@ namespace jpick
                 }
                 else if (const Slice *slice = std::get_if<Slice>(&step))
                 {
-                    const Array &arr = value.as_array();
-                    const int len = static_cast<int>(arr.size());
-                    // Compute actual start and end indices.
-                    int start = slice->has_start ? slice->start : 0;
-                    int end = slice->has_end ? slice->end : len;
-                    // Negative indices count from the end.
-                    if (start < 0)
-                        start += len;
-                    if (end < 0)
-                        end += len;
-                    // Clamp to valid range.
-                    start = std::max(0, std::min(start, len));
-                    end = std::max(0, std::min(end, len));
-                    // Build the slice.
-                    Array sliced;
-                    for (int i = start; i < end; ++i)
-                        sliced.push_back(arr[static_cast<std::size_t>(i)]);
-                    next.push_back(Value(std::move(sliced)));
+                    if (value.is_string())
+                    {
+                        const std::string &str = value.as_string();
+                        auto offsets = utf_offsets(str);
+                        int len = static_cast<int>(offsets.size()) - 1;
+                        auto [start, end] = normalize_slice(*slice, len);
+                        next.push_back(Value(str.substr(offsets[start], offsets[end] - offsets[start])));
+                    }
+                    else
+                    {
+                        const Array &arr = value.as_array();
+                        auto [start, end] = normalize_slice(*slice, static_cast<int>(arr.size()));
+                        Array sliced;
+                        for (int i = start; i < end; ++i)
+                            sliced.push_back(arr[static_cast<std::size_t>(i)]);
+                        next.push_back(Value(std::move(sliced)));
+                    }
                 }
-                else // Iterate: expand the array into its elements
+                else
                 {
                     for (const Value &element : value.as_array())
+                    {
                         next.push_back(element);
+                    }
                 }
             }
             current = std::move(next);

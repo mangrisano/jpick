@@ -824,6 +824,24 @@ TEST_CASE("query_path slices arrays")
     CHECK(query_path(arr, split_path(".[10:20]"))[0] == parse_json("[]"));
 }
 
+TEST_CASE("query_path slices strings by code point")
+{
+    Value s = parse_json("\"abcdefghi\"");
+
+    // Same bound semantics as arrays.
+    CHECK(query_path(s, split_path(".[2:4]"))[0] == parse_json("\"cd\""));
+    CHECK(query_path(s, split_path(".[:3]"))[0] == parse_json("\"abc\""));
+    CHECK(query_path(s, split_path(".[3:]"))[0] == parse_json("\"defghi\""));
+    CHECK(query_path(s, split_path(".[-2:]"))[0] == parse_json("\"hi\""));
+    CHECK(query_path(s, split_path(".[10:20]"))[0] == parse_json("\"\""));
+
+    // A multibyte character (a-grave = 0xC3 0xA0) counts as one code point,
+    // so slicing never splits it into invalid bytes.
+    Value u = parse_json("\"\\u00e0bc\"");
+    CHECK(query_path(u, split_path(".[1:3]"))[0] == parse_json("\"bc\""));
+    CHECK(query_path(u, split_path(".[:1]"))[0] == parse_json("\"\\u00e0\""));
+}
+
 // -----------------------------------------------------------------------------
 // Aggregate and array builtins: add, sort, unique, reverse, min, max,
 // first, last, join, split
