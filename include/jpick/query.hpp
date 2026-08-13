@@ -146,6 +146,42 @@ namespace jpick
         return s.substr(start, end - start + 1);
     }
 
+    // Copy a \( ... ) string interpolation into `out`, starting at the '('
+    // (index `open`). Nested parentheses and string literals inside the
+    // interpolation are copied verbatim so their inner characters (e.g. the
+    // comma in join(",")) are never seen as delimiters. Returns the index of
+    // the matching ')', or the last index scanned when it is unbalanced.
+    inline std::size_t copy_interpolation(const std::string &expr, std::size_t open,
+                                          std::string &out)
+    {
+        out += expr[open]; // the '('
+        int depth = 1;
+        bool in_string = false;
+        std::size_t i = open + 1;
+        for (; i < expr.size() && depth > 0; ++i)
+        {
+            const char c = expr[i];
+            out += c;
+            if (in_string)
+            {
+                if (c == '\\' && i + 1 < expr.size())
+                {
+                    out += expr[i + 1];
+                    ++i;
+                }
+                else if (c == '"')
+                    in_string = false;
+            }
+            else if (c == '"')
+                in_string = true;
+            else if (c == '(')
+                ++depth;
+            else if (c == ')')
+                --depth;
+        }
+        return i - 1; // index of the last consumed character (the matching ')')
+    }
+
     // Split `expr` into trimmed segments at every top-level position where
     // `is_delim(expr, i)` returns a non-zero delimiter length. Positions inside
     // a string literal or inside () / [] nesting are skipped, so a delimiter
@@ -165,9 +201,18 @@ namespace jpick
                 current += c;
                 if (c == '\\' && i + 1 < expr.size())
                 {
-                    // Keep the escape pair intact so \" does not end the string.
-                    current += expr[i + 1];
-                    ++i;
+                    if (expr[i + 1] == '(')
+                    {
+                        // \( opens an interpolation whose inner ) and nested
+                        // strings must not affect where we split.
+                        i = copy_interpolation(expr, i + 1, current);
+                    }
+                    else
+                    {
+                        // Keep the escape pair intact so \" does not end the string.
+                        current += expr[i + 1];
+                        ++i;
+                    }
                 }
                 else if (c == '"')
                 {

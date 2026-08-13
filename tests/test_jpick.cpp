@@ -618,6 +618,17 @@ TEST_CASE("query_pipe evaluates a string-literal stage")
     CHECK(out[1] == Value("b=2"));
 }
 
+TEST_CASE("query_pipe keeps a comma inside an interpolated call from splitting")
+{
+    Value v = parse_json("{\"a\": [\"x\", \"y\"]}");
+
+    // The comma of join(",") lives inside a \( ... ) interpolation and must
+    // not be treated as a top-level stream comma.
+    std::vector<Value> out = query_pipe(v, "\"\\(.a | join(\",\"))\"");
+    REQUIRE(out.size() == 1);
+    CHECK(out[0] == Value("x,y"));
+}
+
 // -----------------------------------------------------------------------------
 // Builtin functions: length, keys, type
 // -----------------------------------------------------------------------------

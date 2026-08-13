@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- A comma inside a call within a string interpolation (e.g.
+  `"\(.a | join(","))"`) no longer breaks parsing with
+  `String interpolation is missing ')'`. The top-level splitter now copies a
+  `\( ... )` interpolation verbatim, so its nested strings, parentheses and
+  commas are never mistaken for delimiters.
+
 ## [2.9.0] - 2026-08-12
 
 ### Added
