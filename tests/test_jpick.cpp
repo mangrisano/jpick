@@ -485,6 +485,21 @@ TEST_CASE("parser rejects trailing content after a value")
 }
 
 // -----------------------------------------------------------------------------
+// Deep nesting must raise a clean error rather than overflow the stack: the
+// recursive descent is bounded by Parser::MAX_DEPTH.
+// -----------------------------------------------------------------------------
+TEST_CASE("parser rejects nesting deeper than MAX_DEPTH")
+{
+    // Well past the limit: the guard must throw before the missing ']' matters.
+    CHECK_THROWS_AS(parse_json(std::string(2 * Parser::MAX_DEPTH, '[')), std::exception);
+    CHECK_THROWS_AS(parse_json(std::string(2 * Parser::MAX_DEPTH, '{')), std::exception);
+
+    // Comfortably within the limit: a balanced document still parses.
+    const std::size_t ok = Parser::MAX_DEPTH / 2;
+    CHECK_NOTHROW(parse_json(std::string(ok, '[') + std::string(ok, ']')));
+}
+
+// -----------------------------------------------------------------------------
 // parse_all: a stream of top-level values (NDJSON / whitespace-separated).
 // -----------------------------------------------------------------------------
 TEST_CASE("parse_all reads every top-level value")
@@ -1273,6 +1288,27 @@ TEST_CASE("query_pipe evaluates ( ... ) groups")
     std::vector<Value> mixed = query_pipe(doc, "[\"a=\\(.a)\", (.b[] | \"x=\\(.x)\")]");
     REQUIRE(mixed.size() == 1);
     CHECK(mixed[0] == parse_json("[\"a=1\", \"x=2\"]"));
+}
+
+// -----------------------------------------------------------------------------
+// A pathologically nested query must raise a clean error rather than overflow
+// the stack: query_pipe's recursion is bounded by MAX_QUERY_DEPTH.
+// -----------------------------------------------------------------------------
+TEST_CASE("query_pipe rejects nesting deeper than MAX_QUERY_DEPTH")
+{
+    Value one = parse_json("1");
+
+    const std::string deep =
+        std::string(2 * MAX_QUERY_DEPTH, '(') + "." + std::string(2 * MAX_QUERY_DEPTH, ')');
+    CHECK_THROWS_AS(query_pipe(one, deep), std::exception);
+
+    // A modest nesting stays well within the limit and still evaluates.
+    const std::size_t ok = 50;
+    const std::string shallow = std::string(ok, '(') + "." + std::string(ok, ')');
+    std::vector<Value> r;
+    CHECK_NOTHROW(r = query_pipe(one, shallow));
+    REQUIRE(r.size() == 1);
+    CHECK(r[0] == Value(1.0));
 }
 
 TEST_CASE("query_pipe evaluates a top-level comma as a stream")

@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Deeply nested JSON input no longer crashes the parser with a stack overflow.
+  The recursive descent is bounded by a maximum nesting depth (1000); input
+  nested beyond it now fails with a clean `Maximum nesting depth exceeded`
+  error instead of a segmentation fault.
+- Deeply nested query expressions (e.g. long runs of `(( ... ))`) no longer
+  crash the query engine with a stack overflow; they now fail with a clean
+  `Maximum query nesting depth exceeded` error.
+
 ## [2.9.1] - 2026-08-13
 
 ### Fixed

@@ -23,6 +23,8 @@
 namespace jpick
 {
 
+    inline constexpr std::size_t MAX_QUERY_DEPTH = 1000;
+
     // Marker for the "[]" step: iterate over all elements of an array.
     struct Iterate
     {
@@ -702,6 +704,18 @@ namespace jpick
     // flattening everything into one stream.
     inline std::vector<Value> query_pipe(const Value &root, const std::string &expr)
     {
+        static thread_local std::size_t depth = 0;
+        struct Guard
+        {
+            std::size_t &d;
+            explicit Guard(std::size_t &d) : d(d)
+            {
+                if (++d > MAX_QUERY_DEPTH)
+                    throw std::runtime_error("Maximum query nesting depth exceeded");
+            }
+            ~Guard() { --d; }
+        };
+        Guard guard(depth);
         std::vector<Value> stream = {root};
         for (const std::string &segment : split_pipe(expr))
         {

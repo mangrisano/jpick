@@ -14,6 +14,19 @@ namespace jpick
 
     struct Parser
     {
+        static constexpr std::size_t MAX_DEPTH = 1000;
+        std::size_t depth = 0;
+        struct DepthGuard {
+            std::size_t &counter;
+            explicit DepthGuard(std::size_t &c) : counter(c) {
+                if (++counter > MAX_DEPTH)
+                    throw std::runtime_error("Maximum nesting depth exceeded");
+            }
+            ~DepthGuard() {
+                --counter;
+            }
+
+        };
         const std::vector<Token> &tokens;
         std::size_t pos = 0;
 
@@ -127,6 +140,7 @@ namespace jpick
 
         Value parse_value()
         {
+            DepthGuard guard(depth);
             switch (peek().type)
             {
             case TokenType::String:
