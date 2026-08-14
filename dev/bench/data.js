@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786744854992,
+  "lastUpdate": 1786744879654,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -857,6 +857,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 418.234,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "f5f8fc7cac5f8ee197487c184d42668ed01ddcc5",
+          "message": "refactor(fuzz): drop redundant (void) casts now that data/size are used",
+          "timestamp": "2026-08-15T00:00:26+02:00",
+          "tree_id": "ebdf03139af249d51126040ccdde99640f8712d5",
+          "url": "https://github.com/mangrisano/jpick/commit/f5f8fc7cac5f8ee197487c184d42668ed01ddcc5"
+        },
+        "date": 1786744878964,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 525.28,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 539.525,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 414.602,
             "unit": "ms"
           }
         ]
