@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786742787564,
+  "lastUpdate": 1786744854992,
   "repoUrl": "https://github.com/mangrisano/jpick",
   "entries": {
     "jpick benchmarks": [
@@ -818,6 +818,45 @@ window.BENCHMARK_DATA = {
           {
             "name": "index + field (100000 objects)",
             "value": 404.523,
+            "unit": "ms"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "committer": {
+            "email": "michele.angrisano@gmail.com",
+            "name": "Michele Angrisano",
+            "username": "mangrisano"
+          },
+          "distinct": true,
+          "id": "bc878c2c3d9a88eaadcf0570e090762ed9aa19f1",
+          "message": "test(fuzz): add parse/serialize round-trip harness\n\nA third libFuzzer harness asserting parse(serialize(v)) == v, to catch serializer and number-formatting bugs the parse/query harnesses miss.",
+          "timestamp": "2026-08-14T23:59:54+02:00",
+          "tree_id": "e29a663609b5dfd2b67cf137a39c7b61d7c86f44",
+          "url": "https://github.com/mangrisano/jpick/commit/bc878c2c3d9a88eaadcf0570e090762ed9aa19f1"
+        },
+        "date": 1786744854474,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "iterate + pipe (100000 objects)",
+            "value": 528.505,
+            "unit": "ms"
+          },
+          {
+            "name": "pretty-print (100000 objects)",
+            "value": 532.189,
+            "unit": "ms"
+          },
+          {
+            "name": "index + field (100000 objects)",
+            "value": 418.234,
             "unit": "ms"
           }
         ]
