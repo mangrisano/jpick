@@ -1015,6 +1015,10 @@ All library code lives in the `jpick` namespace.
   value. Use `-S`/`--sort-keys` to emit keys in ascending order instead.
 - Unicode `\uXXXX` escape sequences, including surrogate pairs, are decoded to
   UTF-8 on input; strings are emitted as UTF-8 (not re-escaped).
+- Evaluation is eager: the whole result stream is held in memory. A query can
+  be written to emit an exponential number of values (e.g. repeating `. , .`
+  across pipe stages), which can exhaust memory. This depends on the query you
+  write, not on the input data.
 
 ## License
 
