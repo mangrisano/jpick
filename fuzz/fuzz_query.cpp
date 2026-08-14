@@ -21,8 +21,6 @@ using namespace jpick;
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 {
-    (void)data;
-    (void)size;
     std::string query(reinterpret_cast<const char *>(data), size);
     static const Value doc = [] {
         auto tokens = tokenize(R"({"a":[1,2,{"b":3}],"s":"hi","n":42})");
