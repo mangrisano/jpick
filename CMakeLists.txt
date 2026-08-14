@@ -50,7 +50,7 @@ if(JPICK_FUZZ)
     set(JPICK_FUZZ_FLAGS -g -O1 -fno-omit-frame-pointer
         -fsanitize=fuzzer,address,undefined)
 
-    foreach(name IN ITEMS parse query)
+    foreach(name IN ITEMS parse query roundtrip)
         add_executable(jpick_fuzz_${name} fuzz/fuzz_${name}.cpp)
         target_include_directories(jpick_fuzz_${name} PRIVATE include third_party)
         target_compile_options(jpick_fuzz_${name} PRIVATE ${JPICK_FUZZ_FLAGS})
