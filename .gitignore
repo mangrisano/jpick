@@ -1,5 +1,14 @@
 # Build output
 build/
+build-fuzz/
+build-san/
+
+# Fuzzing artifacts (crashes and any local scratch corpus are not versioned)
+crash-*
+leak-*
+timeout-*
+oom-*
+slow-unit-*
 
 # Editor / OS
 .vscode/

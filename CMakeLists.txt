@@ -33,3 +33,27 @@ target_compile_options(jpick_tests PRIVATE -Wall -Wextra -Wpedantic)
 
 # Registra l'eseguibile di test con CTest, cosi' basta lanciare `ctest`.
 add_test(NAME jpick_tests COMMAND jpick_tests)
+
+# ---- Fuzzing (libFuzzer + ASan/UBSan) ----
+# Off by default: fuzzing needs a Clang that ships libFuzzer. Apple clang does
+# NOT — use the Homebrew LLVM toolchain. Configure a dedicated build dir with:
+#
+#   cmake -S . -B build-fuzz -DJPICK_FUZZ=ON \
+#     -DCMAKE_CXX_COMPILER=/opt/homebrew/opt/llvm/bin/clang++
+#   cmake --build build-fuzz
+#   ./build-fuzz/jpick_fuzz_parse        # optionally pass a scratch corpus dir
+#
+option(JPICK_FUZZ "Build libFuzzer fuzzing harnesses" OFF)
+
+if(JPICK_FUZZ)
+    # -O1 keeps ASan builds reasonably fast; frame pointers give clean stacks.
+    set(JPICK_FUZZ_FLAGS -g -O1 -fno-omit-frame-pointer
+        -fsanitize=fuzzer,address,undefined)
+
+    foreach(name IN ITEMS parse query)
+        add_executable(jpick_fuzz_${name} fuzz/fuzz_${name}.cpp)
+        target_include_directories(jpick_fuzz_${name} PRIVATE include third_party)
+        target_compile_options(jpick_fuzz_${name} PRIVATE ${JPICK_FUZZ_FLAGS})
+        target_link_options(jpick_fuzz_${name} PRIVATE ${JPICK_FUZZ_FLAGS})
+    endforeach()
+endif()
